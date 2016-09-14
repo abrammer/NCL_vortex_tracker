@@ -1,5 +1,48 @@
-load "/home11/grad/2010/abrammer/Desktop/research/noaa_postdoc/lib/make_lon_monotonic.ncl"
-load "/home11/grad/2010/abrammer/Desktop/research/noaa_postdoc/lib/check_closed_contour.ncl"
+
+undef("unwrap_lon")
+function unwrap_lon(lon, thresh)
+local lon, dl, nl,isM,disc,diff,nmi
+begin
+
+nl = dimsizes(lon)
+nmi := ind(.not.ismissing(lon))
+
+do d=0,dimsizes(nmi)-2
+
+  if( lon(nmi(d+1)) - lon(nmi(d)).lt. thresh)
+    lon(nmi(d+1))  = lon(nmi(d+1))+360
+  end if
+  if(lon(nmi(d+1)) - lon(nmi(d)).gt. thresh)
+    lon(nmi(d+1))  = lon(nmi(d+1))-360
+  end if
+end do
+
+if(any(lon.lt.0))
+ lon = lon + 360
+end if
+
+return(lon)
+end
+
+undef("wrap_lon")
+function wrap_lon(lon)
+local lon, dl, nl,isM,disc,diff,nmi
+begin
+
+do while(any(lon.gt.180))
+lon = where(lon.gt.180, lon-360, lon)
+end do
+
+do while(any(lon.lt.-180))
+lon = where(lon.lt.-180, lon+360, lon)
+end do
+
+
+return(lon)
+end
+
+
+
 
 
 undef("unique_locations")
