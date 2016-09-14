@@ -1,4 +1,22 @@
 
+undef("first")
+function first(x)
+local nmi
+begin
+ nmi = ind(.not.ismissing(x))
+ return(x(nmi(0)))
+end
+
+undef("last")
+function last(x)
+local dims,nmi
+ begin
+ nmi = ind(.not.ismissing(x))
+ dims = dimsizes(nmi)
+ return(x(nmi(dims(0)-1)))
+end
+
+
 undef("unwrap_lon")
 function unwrap_lon(lon, thresh)
 local lon, dl, nl,isM,disc,diff,nmi
@@ -565,7 +583,7 @@ dimz = dimsizes(in_lat)
 mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
 mand_data@_FillValue = default_fillvalue("float")
 if(.not. all(ismissing(in_lat)))
-do v=0, dimsizes(vars)-1
+ do v=0, dimsizes(vars)-1
   opt = opts(v)
   opt@levs = levs(v)
   data := grab_data(in_time, vars(v), opt)  ;; read in global grid from file
@@ -575,18 +593,16 @@ do v=0, dimsizes(vars)-1
   end if
   data@rkm = rkms(v)
 
-    locs = new( (/dimz(0), 2/), float)
-    locs(:,0) = in_lat
-    locs(:,1) = in_lon
-    mand_data(:,:2,v) = get_mass_center(data, locs)    
-    if(v.eq.0 .and. any(.not.ismissing( mand_data(:,0,0))) )
-     nmi := ind(.not.ismissing( mand_data(:,0,0)))
-     in_lat(nmi) = dim_avg_n((/in_lat(nmi), mand_data(nmi,0,0)/),0)
-     in_lon(nmi) = dim_avg_n((/in_lon(nmi), mand_data(nmi,1,0)/),0)
-    end if
-
-;  end if
-end do
+  locs = new( (/dimz(0), 2/), float)
+  locs(:,0) = in_lat
+  locs(:,1) = in_lon
+  mand_data(:,:2,v) = get_mass_center(data, locs)    
+  if(v.eq.0 .and. any(.not.ismissing( mand_data(:,0,0))) )
+   nmi := ind(.not.ismissing( mand_data(:,0,0)))
+   in_lat(nmi) = dim_avg_n((/in_lat(nmi), mand_data(nmi,0,0)/),0)
+   in_lon(nmi) = dim_avg_n((/in_lon(nmi), mand_data(nmi,1,0)/),0)
+  end if
+ end do
 end if
 mand_data!0 = "systems"
 mand_data!1 = "data"

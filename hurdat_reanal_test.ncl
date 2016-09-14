@@ -1,21 +1,27 @@
-load "~/NCL/loadFiles.ncl"
-load "~/NCL/functions/print_r.ncl"
-load "~/NCL/functions/percentile.ncl"
+;load "~/NCL/loadFiles.ncl"
+;load "~/NCL/functions/print_r.ncl"
+;load "~/NCL/functions/percentile.ncl"
+
 load "lib/get_cfsr_climo.ncl"
 load "lib/make_lon_monotonic.ncl"
 load "lib/hurricane_track_functions.ncl"
 load "lib/check_location.ncl"
+load "lib/progress_bar.ncl"
 
 
 
+model = "cfsr"    ;; used in outfile "Title" attribute
+out_filename = "data/"+model+"_ibtracs_v03r08.nc"
 
 begin
+
+print("Starting ibtracs relocation for "+model)
+print("")
 
 c_inds = (/0,3, 7,9,10,13,15,16,18/)
 centers = (/  "hurdat_atl","td9636","reunion","atcf","mlc_natl","ds824_sh","ds824_ni","bom","ds824_au","jtwc_sh","jtwc_wp","td9635","ds824_wp","jtwc_io","cma","hurdat_epa","jtwc_ep","ds824_ep","jtwc_cp","tokyo","neumann","hko","cphc","wellington","newdelhi","nadi"/)
 
 
-out_filename = "data/cfsr_ibtracs_v03r08.nc"
 
 if(.not.fileexists(out_filename))
      setfileoption("nc","Format", "NetCDF4") 
@@ -25,7 +31,7 @@ if(.not.fileexists(out_filename))
      ; create global attributes of the file (optional)
      ;===================================================================
      fAtt               = True            ; assign file attributes
-     fAtt@title         = "ERAI Storm Data recentered from HURDAT"
+     fAtt@title         = model+" Storm Data recentered from ibtracs"
      fAtt@Conventions   = "None"
      fAtt@creation_date = systemfunc ("date")
      fileattdef( ncdf, fAtt )            ; copy file attributes
@@ -130,7 +136,7 @@ year := cd_calendar(times, 0)
 storms := nmi( ind(year(:,0).ge.1979))
 
 storm_id := ncin->storm_sn(storms,:)
-printVarSummary(storm_id)
+;printVarSummary(storm_id)
 
 rlon = lon
 rlat = lat
@@ -276,7 +282,7 @@ undef("extra_code")
 procedure extra_code()
 begin
 
-hist1D(IPE,0)
+;hist1D(IPE,0)
 
 IPE_max = dim_max_n(IPE,1)
 
@@ -328,7 +334,7 @@ end do
 
 dists@_FillValue = -1
 
-print_r(dists)
+;print_r(dists)
 print(table(:,0))
 end
 ;

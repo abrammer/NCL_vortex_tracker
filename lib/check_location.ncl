@@ -1,4 +1,9 @@
-
+undef("df")
+procedure df(wks, plot)
+begin
+draw(plot)
+frame(wks)
+end 
 ;check_location(wks, in_time, (/in_lat, in_lon/), sub_scale)
 
 undef("check_location")
