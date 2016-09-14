@@ -1,4 +1,4 @@
-load "~/NCL/functions/make_lon_monotonic.ncl"
+load "/home11/grad/2010/abrammer/Desktop/research/noaa_postdoc/lib/make_lon_monotonic.ncl"
 load "/home11/grad/2010/abrammer/Desktop/research/noaa_postdoc/lib/check_closed_contour.ncl"
 
 
