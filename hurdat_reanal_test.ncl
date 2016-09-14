@@ -123,6 +123,7 @@ ncin = addfile("~/data/ibtracs/Allstorms.ibtracs_all.v03r08.nc","r")
 ;lat := dim_avg_n_Wrap( source_lat,2)
 ;lon := dim_avg_n_Wrap( source_lon, 2)
 
+source_type  := ncin->nature_for_mapping
 source_lat := short2flt(ncin->lat_for_mapping(:,:))
 source_lon := short2flt(ncin->lon_for_mapping(:,:))
 lat := source_lat
@@ -166,6 +167,7 @@ lat(storms(s), :)  = linmsg(lat(storms(s), :) , 0)
 lon(storms(s), :) = wrap_lon(lon(storms(s),:))
 
 do t=0, dimsizes(time)-1
+  type   := source_type(storms(s),:t)
   in_lat := lat(storms(s),t)
   in_lon := lon(storms(s),t)
   in_time := time(t)
@@ -179,13 +181,14 @@ do t=0, dimsizes(time)-1
    if(.not.ismissing(c_loc(0)))
       outlocs(t,:) = (/c_loc/)
 ;    print(  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
-    if(t.ne.dimsizes(time)-1)
+    if(t.ne.dimsizes(time)-1 .and.  any(type .eq. 0) )
+;      print("nudging track")
      lat(storms(s),t+1:) = lat(storms(s),t+1:) + ( c_loc(0) - lat(storms(s),t) )
      lon(storms(s),t+1:) = lon(storms(s),t+1:) + ( c_loc(1) - lon(storms(s),t) )
 ;    print(  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
     end if
     end if
-;   check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
+  check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
   else
   if(all(ismissing(  lat(storms(s),t:))))
    break
