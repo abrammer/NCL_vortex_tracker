@@ -1,9 +1,8 @@
 load "~/NCL/loadFiles.ncl"
 load "~/NCL/functions/print_r.ncl"
 load "~/NCL/functions/percentile.ncl"
-;load "~/NCL/functions/HURDAT_storm_info.ncl"
 load "lib/get_cfsr_climo.ncl"
-load "~/NCL/functions/make_lon_monotonic.ncl"
+load "lib/make_lon_monotonic.ncl"
 load "lib/hurricane_track_functions.ncl"
 load "lib/check_location.ncl"
 
