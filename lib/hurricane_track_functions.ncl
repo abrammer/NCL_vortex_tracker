@@ -521,7 +521,7 @@ vars = (/  "pmsl","vr",  "g","g","vr","vr", "uv", "uv"/)
 opts := (/False,   True,True,True, True, True, True, True/)
 levs = (/  -999., 850,  850,  700, 700,   925, 850, 700/)
 minima=(/ True,   False,True, True, False, False, True, True/)
-rkms =(/  750,    500., 350, 350, 350, 350, 125, 125/)
+rkms =(/  500,    500., 350, 350, 350, 350, 125, 125/)
 
 dimz = dimsizes(in_lat)
 mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
