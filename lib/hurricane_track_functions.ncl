@@ -237,15 +237,7 @@ function subgrid_location_km(data[*][*]:float, lat[1]:numeric, lon[1]:numeric, m
 local lati, loni, lap, lam, lop, lom, subgrid, lats, lons, alat, alon, aval, dists
 begin
 
-;delta = 2   ;  grid points
-
-;lati = ind_nearest_coord(lat,data&lat, 0)
-;loni = ind_nearest_coord(lon, data&lon, 0)
-;lap = lati+delta < dimsizes(data&lat)-1
-;lam = lati-delta > 0
-;lop = loni+delta < dimsizes(data&lon)-1
-;lom = loni-delta > 0
-
+;print(""+km)
 subgrid = data;(lam:lap, lom:lop) 
 if(minima)  subgrid = subgrid*-1  end if
 if(any(subgrid.lt.0)) subgrid = subgrid+abs(min(subgrid)) end if
@@ -253,12 +245,17 @@ if(any(subgrid.lt.0)) subgrid = subgrid+abs(min(subgrid)) end if
 lats = conform(subgrid, subgrid&lat, 0)
 lons = conform(subgrid, subgrid&lon, 1)
 dists = gc_latlon(lat, lon, lats, lons, 0, 4)
-dists = ((km - dists) > 0)/ (0.5*km) < 1.
-subgrid = subgrid * dists
+dists = ((km - dists) > 0)  / (0.5*km) < 1.
+
+subgrid = subgrid^2 * dists
 
 alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
 alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
 aval = dim_avg_wgt(ndtooned(data), ndtooned(subgrid), 1)
+
+;plot = gsn_csm_contour(wks, subgrid, False)
+;mark = gsn_add_polymarker(wks, plot, alon, alat, False)
+;df(wks, plot)
 
 return( (/alat, alon, aval/) )
 end
@@ -302,7 +299,6 @@ undef("get_mass_center")
 function get_mass_center(data, locs)
 local minima, rkm,dimz, rankz, retval, pLat, pLon, dx, sublocs, lats, lons, val1d, dist
 begin
-dx = 10;
 minima :=  get_res_value_keep(data, "minima", False) 
 rkm :=  get_res_value_keep(data, "rkm", 400.) 
 
@@ -326,81 +322,29 @@ else
   end if
     
   ;;;;;   shift grid so we're not at the edge of a domain
-  if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
-      if( pLon-dx .lt. data&lon(0)  )
-        data_ = lonPivot(data, pLon+180)
-        data_&lon = make_lon_monotonic(data_&lon)
-        data_&lon = data_&lon - 360.
-      else
-        data_ = lonPivot(data, pLon-180)
-        data_&lon = make_lon_monotonic(data_&lon)
-      end if
-      sublocs := data_({pLat-dx:pLat+dx}, {pLon-dx:pLon+dx})
-  else
-  sublocs := data({pLat-dx:pLat+dx}, {pLon-dx:pLon+dx})
-  end if
-
+  dx = 10;
+  sublocs := shift_grid(data, pLat, pLon,dx, dx)
 
   ;;;;;   Find mass center over large area first
-;large_scale :=  subgrid_location(sublocs, pLat, pLon, minima, 7)
-;large_scale :=  subgrid_location_km(sublocs, pLat, pLon, minima, 400)
-;print(""+large_scale)
-large_scale :=  subgrid_location_km(sublocs,  pLat, pLon,minima, rkm)
-;large_scale :=  subgrid_location_km(sublocs, large_scale(0), large_scale(1), minima, 300)
-sub_scale :=  subgrid_location_km(sublocs, large_scale(0), large_scale(1), minima, rkm/2)
-;
-; if(any(ismissing(large_scale)))
-;                                   if(debug) print("Missing large scale") end if
-;  return(retval)
-; end if
-;;
-;;large_scale = locs
-;  ;;;;;  Find center within smaller area; make sure it's within rkm distance. 
-;  ;;;;;  if multiple take maxima/ minima 
-;subsub := sublocs({large_scale(0)-6:large_scale(0)+6},{large_scale(1)-6:large_scale(1)+6})
-;if( get_res_value_keep(data, "minima", False) )
-;  if(debug) print("Searching for minima") end if
-;
-;  mini := loc_min(subsub, False, percentile(ndtooned(subsub),85.) )
-;  if(debug) print("Found "+mini+" potential minima") end if
-;
-;  if(mini.eq.0) return(retval) end if
-;  dist := gc_latlon(large_scale(0), large_scale(1), mini@lat, mini@lon,0,4)
-;;  dist = gc_latlon(pLat, pLon, mini@lat, mini@lon,0,4)
-;  mi :=ind(dist .le. rkm)
-; if(all(ismissing(mi))) return(retval) end if
-;  mi := mi( minind(mini@val(mi)) )
-;  do r=150,rkm,150
-;    if(any(dist .lt. r))
-;      di := ind(dist .lt. r)
-;      mi := di( minind(mini@val(di)))
-;    end if
-;  end do
-;else
-;  mini := loc_max(subsub, False, percentile(ndtooned(subsub),85.))
-;  if(debug) print("Found "+mini+" potential maxima") end if
-;  if(mini.eq.0) return(retval) end if
-;;  dist = gc_latlon(pLat(0), locs(1), mini@lat, mini@lon,0,4)
-;  dist := gc_latlon(large_scale(0), large_scale(1), mini@lat, mini@lon,0,4)
-;  mi :=ind( dist .le. rkm)
-;  if(all(ismissing(mi))) return(retval) end if
-;  do rk=150,rkm,150
-;;  print(r)
-;  if(any(dist .lt. rk))
-;    di := ind(dist .lt. rk)
-;    mi := di( maxind(mini@val(di)))
-;;    print(mini@lat(mi))
-;    break
-;  end if
-;  end do
-;end if
-;mark = gsn_add_polymarker(wks,  map, mini@lon(mi(0)),  mini@lat(mi(0)), False)
-;mark = gsn_add_polymarker(wks,  map, large_scale(1),  large_scale, False)
-;df(wks, map)
-;;print(mini@lat(mi))
-;;;  find mass center over small region. 
-; sub_scale = subgrid_location(sublocs, mini@lat(mi(0)), mini@lon(mi(0)), minima, 2)
- retval(0,:2)  = sub_scale
+  n=1
+  sub_scale :=  subgrid_location_km(sublocs,  pLat, pLon,minima, rkm)  
+  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
+   n=2 
+  do while( rkm/(n-1) .gt. 100 )
+   sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
+   sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
+   n=n+1
+  end do
+
+;res = True
+;res@cnFillOn = False
+;res@cnLevelSpacingF = 50
+;plot = gsn_csm_contour(wks, sublocs, res)
+;mark = gsn_add_polymarker(wks, plot, sub_scale(1), sub_scale(0), False)
+;df(wks, plot)
+
+
+  retval(0,:2)  = sub_scale
 
   return(   retval )
 end if
@@ -573,11 +517,11 @@ function get_mand_positions(in_time, in_lat, in_lon, rkm)
 local vars, opts, levs, minima, mins, mand_data, rkm, temp_min, opt,data, locs, in_time, in_lat, in_lon, rkm
 begin
 
-vars = (/"vr", "pmsl","g","g","vr","vr", "uv", "uv"/)
-opts := (/True,False,  True,True, True, True, True, True/)
-levs = (/ 850, -999.,  850,  700, 700,   925, 850, 700/)
-minima=(/False,True,  True, True, False, False, True, True/)
-rkms =(/ 500., 350, 350, 350, 350, 350, 125, 125/)
+vars = (/  "pmsl","vr",  "g","g","vr","vr", "uv", "uv"/)
+opts := (/False,   True,True,True, True, True, True, True/)
+levs = (/  -999., 850,  850,  700, 700,   925, 850, 700/)
+minima=(/ True,   False,True, True, False, False, True, True/)
+rkms =(/  750,    500., 350, 350, 350, 350, 125, 125/)
 
 dimz = dimsizes(in_lat)
 mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)

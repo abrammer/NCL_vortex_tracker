@@ -5,6 +5,7 @@
 load "lib/get_cfsr_climo.ncl"
 load "lib/make_lon_monotonic.ncl"
 load "lib/hurricane_track_functions.ncl"
+load "~/NCL/loadFiles.ncl"
 load "lib/check_location.ncl"
 load "lib/progress_bar.ncl"
 
@@ -173,7 +174,7 @@ do t=0, dimsizes(time)-1
   in_time := time(t)
 ;  print( in_lat +"   "+in_lon)
  if(.not.ismissing(in_lat))
-    new_loc := rm_single_dims(get_mand_positions(in_time, in_lat, in_lon, 350.))
+    new_loc := rm_single_dims(get_mand_positions(in_time, in_lat, in_lon, 500.))
     outdata(t,:,:7) = (/ new_loc /)
     c_loc = combine_mand_positions(new_loc)
     c_loc = where(abs(c_loc) .gt. 720, c_loc@_FillValue, c_loc)
@@ -188,7 +189,9 @@ do t=0, dimsizes(time)-1
 ;    print(  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
     end if
     end if
-  check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
+    outlocs@lat := new_loc(0,:)
+    outlocs@lon :=new_loc(1,:)
+;    check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
   else
   if(all(ismissing(  lat(storms(s),t:))))
    break
@@ -205,6 +208,9 @@ ncdf->storm_sn(s,:) = (/ storm_id(s,:) /)
 end do
 end
 
+wkst = "x11"
+wkst@wkPause = False
+wks=gsn_open_wks(wkst, "")
 
 
 
