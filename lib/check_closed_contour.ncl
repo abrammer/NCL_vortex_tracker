@@ -7,6 +7,9 @@
 ;;;;;;;   will return highest closed isoline value
 ;;;;;;  @todo  ; Add array support to return values and x/y coords of closed
 ;;;;;;  note ; only returns True/ False so @loop isn't very useful currently
+;;;;;;   ^^^^^^ seems to work with arrays and loop. Maybe I'm insane?
+;;;;;;
+;;;;;;  If you use this, please shoot me an email so I know my time isn't wasted. 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 undef("check_closed_contour")
