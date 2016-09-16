@@ -39,6 +39,7 @@ else
   center_loc(0,:) = in_locs
 end if
 
+print(nloc)
 retval = False
 crits = new(nloc, float)
 crits = tofloat(critvalue)
@@ -110,3 +111,60 @@ retval@x = keep_x
 ;delete(fake_wks)
 return( retval )
 end
+
+
+
+undef("check_closed_contour_demo")
+procedure check_closed_contour_demo()
+local inf, data, wks, mpres, map, lats, lons, vals, marks, locs, critvals, closed, gsres, lines, a, b, j
+begin
+
+
+inf = addfile("/cfsr/data/2010/pmsl.2010.0p5.anl.nc","r")
+
+data = inf->pmsl(1235,:,:)
+data = data / 100.
+wks = gsn_open_wks("x11","")
+mpres = True
+mpres@mpMaxLatF = 60
+mpres@mpMinLatF = 10
+mpres@mpMinLonF = -100
+mpres@mpMaxLonF = -50
+mpres@cnLevelSpacingF = 2.
+mpres@cnLowLabelsOn = False
+mpres@gsnDraw = False
+mpres@gsnFrame = False
+map = gsn_csm_contour_map(wks, data, mpres)
+
+lats = (/20, 45/)
+lons = (/-74, -71/)
+vals = (/1000, 994/)
+marks = gsn_add_polymarker(wks, map, lons, lats, False)
+
+locs := new( (/2,2/), float)
+locs(:,0) = lats
+locs(:,1) = lons
+
+critvals = vals + 2.
+critvals@loop = True
+critvals@interval = 2
+closed :=  check_closed_contour(data, locs, critvals)
+
+gsres  = True
+gsres@gsLineColor = "Red"
+gsres@gsLineThicknessF = 5.
+lines = new(dimsizes(closed), graphic)
+do j = 0,dimsizes(closed) -1
+  if(closed(j))
+    a = closed@start_point(j)
+    b = closed@start_point(j) + closed@n_points(j)-1
+    lines(j) = gsn_add_polyline(wks, map, closed@x(a:b), closed@y(a:b), gsres)
+  end if
+end do
+
+draw(map)
+frame(wks)
+
+end
+
+
