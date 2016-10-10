@@ -189,23 +189,25 @@ begin
 end
 
 undef("loc_min_dist")
-function loc_min_dist(x, cyclic, dist, inlocs)
-local x, cyclic, dist, locs,\
- maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max
+function loc_min_dist(data, cyclic, dist, inlocs)
+local data, cyclic, dist, locs,\
+ maxs, dimnames, mlons, mlats, dists, dist_ind, nmadata, new_max
 begin
 
-  maxs = local_min(x, cyclic, 0.)
+  maxs = local_min(data, cyclic, 0.)
+  maxs@val = maxs@minval
   if(all(maxs.eq.0))
      return(0)
   end if
-  dimnames = getVarDimNames(x)
-  mlons :=  x&$dimnames(1)$(maxs@xi)
-  mlats :=  x&$dimnames(0)$(maxs@yi)
+  dimnames = getVarDimNames(data)
+  mlons :=  data&$dimnames(1)$(maxs@xi)
+  mlats :=  data&$dimnames(0)$(maxs@yi)
   dimz = dimsizes(inlocs)
   rankz = dimsizes(dimz)
   if(rankz.eq.1)
   n=1
   locs = new( (/2, 1/), float)
+  locs(:,0) = inlocs
   else
   n=dimz(1)
   locs = inlocs
@@ -221,11 +223,11 @@ begin
      if(all(ismissing(dist_ind)))
        continue
      end if
-    nmax := dist_ind( minind(maxs@minval(dist_ind)))  
+    nmax := dist_ind( minind(maxs@val(dist_ind)))  
     retval(i) = True
-    retval@val(i) = maxs@minval(nmax)
-    retval@$dimnames(1)$(i) = x&$dimnames(1)$(maxs@xi(nmax))
-    retval@$dimnames(0)$(i) = x&$dimnames(0)$(maxs@yi(nmax))
+    retval@val(i) = maxs@val(nmax)
+    retval@$dimnames(1)$(i) = data&$dimnames(1)$(maxs@xi(nmax))
+    retval@$dimnames(0)$(i) = data&$dimnames(0)$(maxs@yi(nmax))
   end do
   
   return(retval)
@@ -417,16 +419,14 @@ end
 
 
 undef("is_minima")
-function is_minima(mslp, lat,lon, dist)
-local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret
+function is_minima(data, lat,lon, dist)
+local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret,data
 begin
-mslp@minmima = True
-retval =  loc_min_dist(mslp, True, dist, (/lat, lon/) )
+data@minima = True
+retval =  loc_min_dist(data, True, dist*1.5, (/lat, lon/) )
 if(any(retval))
-lat = retval@lat
-lon = retval@lon
 
-retval := get_mass_center(mslp, (/lat, lon/) )
+retval := get_mass_center(data, (/retval@lat, retval@lon/) )
 min_lat = retval(0,0)
 min_lon = retval(0,1)
 
@@ -447,12 +447,10 @@ local var_sub, loc_max, lmi, locs, min_lat, ret, mslp, lat, lon, dist,retval
 begin
 ;print(lat+"   "+lon)
 
-retval =  loc_max_dist(mslp, True, dist, (/lat, lon/) )
+retval =  loc_max_dist(mslp, True, dist*1.5, (/lat, lon/) )
 if(any(retval))
-lat = retval@lat
-lon = retval@lon
 
-retval := get_mass_center(mslp, (/lat, lon/) )
+retval := get_mass_center(mslp, (/retval@lat, retval@lon/) )
 min_lat = retval(0,0)
 min_lon = retval(0,1)
 
@@ -572,6 +570,11 @@ if(.not. all(ismissing(in_lat)))
         else
           temp_min := is_maxima(data, in_lat(l), in_lon(l), rkm)
         end if
+;        if(.not.ismissing(temp_min@lat))
+;;        check_centerfix(wks, data, (/temp_min@lat, temp_min@lon/))
+;
+;;        check_centerfix(wks, data, (/in_lat(l), in_lon(l)/))
+;        end if
         mand_data(l,0,v)  = get_res_value(temp_min, "lat", mand_data@_FillValue)
         mand_data(l,1,v)  = get_res_value(temp_min, "lon", mand_data@_FillValue)
         mand_data(l,2,v)  = get_res_value(temp_min, "val", mand_data@_FillValue)  
@@ -604,8 +607,8 @@ min_thresh = get_res_value_keep(opt, "min_threshold", 0.1)
 
 cv := grab_data(time, "ow", opt)
 cv = circle_avg_m(cv, rkm)
-uwnd := grab_data(time, "u", opt)
-vwnd := grab_data(time, "v", opt)
+;uwnd := grab_data(time, "u", opt)
+;vwnd := grab_data(time, "v", opt)
 
 
 maxes := loc_max(cv({lat_bds(0):lat_bds(1)},{lon_bds(0):lon_bds(1)}), True, min_thresh)
@@ -615,19 +618,19 @@ do m=0, maxes-1
 end do
 
 ;;;;;;;;;;  Remove duplicate locations
-maxes_mass := unique_locations(maxes_mass, 100.)
+maxes_mass := unique_locations(maxes_mass, 200.)
 maxes_mass := maxes_mass(ind(.not.ismissing(maxes_mass(:,0))),:)        
 ;;;;;;;;;;;;;;;;;;;;;
 
-maxes_uwnd := circle_avg_m_point(uwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
-maxes_vwnd := circle_avg_m_point(vwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
-easterly := ind(maxes_uwnd .lt. 1)     ;; easterly with a bit of wiggle room
-maxes_mass := maxes_mass(easterly,:)
-if(dimsizes(easterly).eq.1)
- retval := new( (/1,3/), float)
- retval(0,:) = maxes_mass
- maxes_mass := retval
-end if
+;maxes_uwnd := circle_avg_m_point(uwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
+;maxes_vwnd := circle_avg_m_point(vwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
+;easterly := ind(maxes_uwnd .lt. 1)     ;; easterly with a bit of wiggle room
+;maxes_mass := maxes_mass(easterly,:)
+;if(dimsizes(easterly).eq.1)
+; retval := new( (/1,3/), float)
+; retval(0,:) = maxes_mass
+; maxes_mass := retval
+;end if
 
 ;;;;;;;;;;;;;   Recenter potential targets on combined wave location  ;;; too slow to do here. 
 ;tmp_wave_locs := get_wave_positions(time, maxes_mass(:,0), maxes_mass(:,1), 600)
@@ -716,18 +719,20 @@ rankz = dimsizes(dimz)
 if(rankz.eq.3)
   retval = new( (/dimz(0), 2/), float)
   do r=0, dimz(0)-1
+;    print("   "+r)
    retval(r,:) = combine_wave_positions( mand_data(r,:,:) )
   end do
   return retval
 else
-if( num(.not.ismissing(mand_data(0,(/0,1,2,4,5/)))).lt.2 ) 
+if( num(.not.ismissing(mand_data(0,(/0,1,2,4,5/)))).le.2 ) 
     return( (/mand_data@_FillValue, mand_data@_FillValue/) )
  end if 
  zinds := ind( gc_latlon(avg(mand_data(0,:)), avg(mand_data(1,:)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+;print(zinds +"  ")
  if(all(ismissing(zinds)))
    zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
  end if 
- if(dimsizes(zinds).lt.2)
+ if(dimsizes(zinds).le.2)
      return( (/mand_data@_FillValue, mand_data@_FillValue/) )
  end if 
  avg_loc = dim_avg_n( mand_data(:1,zinds),1)
