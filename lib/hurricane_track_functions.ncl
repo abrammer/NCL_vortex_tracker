@@ -60,6 +60,29 @@ return(lon)
 end
 
 
+undef("shift_grid")
+function shift_grid(data, pLat, pLon,dy, dx)
+local data, pLon, pLat, dy, dx, sub_locs, data_
+begin
+    
+  ;;;;;   shift grid so we're not at the edge of a domain
+  if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
+      if( pLon-dx .lt. data&lon(0)  )
+        data_ = lonPivot(data, pLon+180)
+        data_&lon = make_lon_monotonic(data_&lon)
+        data_&lon = data_&lon - 360.
+      else
+        data_ = lonPivot(data, pLon-180)
+        data_&lon = make_lon_monotonic(data_&lon)
+      end if
+      sublocs := data_({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
+  else
+  sublocs := data({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
+  end if
+
+    return sublocs
+end
+
 
 
 
@@ -120,55 +143,93 @@ end do
 return dataout
 end
 
-undef("shift_grid")
-function shift_grid(data, pLat, pLon,dy, dx)
-local data, pLon, pLat, dy, dx, sub_locs, data_
-begin
-    
-  ;;;;;   shift grid so we're not at the edge of a domain
-  if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
-      if( pLon-dx .lt. data&lon(0)  )
-        data_ = lonPivot(data, pLon+180)
-        data_&lon = make_lon_monotonic(data_&lon)
-        data_&lon = data_&lon - 360.
-      else
-        data_ = lonPivot(data, pLon-180)
-        data_&lon = make_lon_monotonic(data_&lon)
-      end if
-      sublocs := data_({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
-  else
-  sublocs := data({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
-  end if
-
-    return sublocs
-end
-
 
 undef("loc_max_dist")
-function loc_max_dist(x, cyclic, dist, locs)
+function loc_max_dist(x, cyclic, dist, inlocs)
 local x, cyclic, dist, locs,\
  maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max
 begin
+
   maxs = local_max(x, cyclic, 0.)
   if(all(maxs.eq.0))
      return(0)
   end if
   dimnames = getVarDimNames(x)
   mlons =  x&$dimnames(1)$(maxs@xi)
-  mlats =  x&$dimnames(0)$(maxs@xi)
-  dists = gc_latlon(locs(0), locs(1), mlats, mlons,0,4)
-  dist_ind = ind(dists .le. dist)
-  if(all(ismissing(dist_ind)))
-    return(0)
+  mlats =  x&$dimnames(0)$(maxs@yi)
+  dimz = dimsizes(inlocs)
+  rankz = dimsizes(dimz)
+  if(rankz.eq.1)
+  n=1
+  locs = new( (/2, 1/), float)
+  locs(:,0) = inlocs
+  else
+  n=dimz(1)
+  locs = inlocs
   end if
-  nmax = dist_ind( maxind(maxs@maxval(dist_ind)))  
-  new_max = 1
-  new_max@val = maxs@maxval(nmax)
-  new_max@$dimnames(1)$ = x&$dimnames(1)$(maxs@xi(nmax))
-  new_max@$dimnames(0)$ = x&$dimnames(0)$(maxs@yi(nmax))
-  return(new_max)
+  retval := new(n, logical)
+  retval = False
+  retval@val = new(n, float)
+  retval@$dimnames(0)$ =  new(n, float)
+  retval@$dimnames(1)$ =  new(n, float)
+  do i=0,n-1
+    dists = gc_latlon(locs(0,i), locs(1,i), mlats, mlons,0,4)
+    dist_ind := ind(dists .le. dist)
+     if(all(ismissing(dist_ind)))
+       continue
+     end if
+    nmax := dist_ind( maxind(maxs@maxval(dist_ind)))  
+    retval(i) = True
+    retval@val(i) = maxs@maxval(nmax)
+    retval@$dimnames(1)$(i) = x&$dimnames(1)$(maxs@xi(nmax))
+    retval@$dimnames(0)$(i) = x&$dimnames(0)$(maxs@yi(nmax))
+  end do
+  
+  return(retval)
 end
 
+undef("loc_min_dist")
+function loc_min_dist(x, cyclic, dist, inlocs)
+local x, cyclic, dist, locs,\
+ maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max
+begin
+
+  maxs = local_min(x, cyclic, 0.)
+  if(all(maxs.eq.0))
+     return(0)
+  end if
+  dimnames = getVarDimNames(x)
+  mlons :=  x&$dimnames(1)$(maxs@xi)
+  mlats :=  x&$dimnames(0)$(maxs@yi)
+  dimz = dimsizes(inlocs)
+  rankz = dimsizes(dimz)
+  if(rankz.eq.1)
+  n=1
+  locs = new( (/2, 1/), float)
+  else
+  n=dimz(1)
+  locs = inlocs
+  end if
+  retval := new(n, logical)
+  retval = False
+  retval@val = new(n, float)
+  retval@$dimnames(0)$ =  new(n, float)
+  retval@$dimnames(1)$ =  new(n, float)
+  do i=0,n-1
+    dists := gc_latlon(locs(0,i), locs(1,i), mlats, mlons,0,4)
+    dist_ind := ind(dists .le. dist)
+     if(all(ismissing(dist_ind)))
+       continue
+     end if
+    nmax := dist_ind( minind(maxs@minval(dist_ind)))  
+    retval(i) = True
+    retval@val(i) = maxs@minval(nmax)
+    retval@$dimnames(1)$(i) = x&$dimnames(1)$(maxs@xi(nmax))
+    retval@$dimnames(0)$(i) = x&$dimnames(0)$(maxs@yi(nmax))
+  end do
+  
+  return(retval)
+end
 
 
 undef("loc_max")
@@ -194,7 +255,7 @@ end
 
 undef("loc_min")
 function loc_min(x, cyclic, thres)
-local mins, new_min, min_thres
+local mins, new_min, min_thres, dimnames
 begin
   mins = local_min(x, cyclic, 0.)
   if(all(mins.eq.0))
@@ -357,10 +418,15 @@ end
 
 undef("is_minima")
 function is_minima(mslp, lat,lon, dist)
-local var_sub, var, loc_min, lmi, min_lat,min_lon, ret
+local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret
 begin
 mslp@minmima = True
-retval = get_mass_center(mslp, (/lat, lon/) )
+retval =  loc_min_dist(mslp, True, dist, (/lat, lon/) )
+if(any(retval))
+lat = retval@lat
+lon = retval@lon
+
+retval := get_mass_center(mslp, (/lat, lon/) )
 min_lat = retval(0,0)
 min_lon = retval(0,1)
 
@@ -370,9 +436,9 @@ if( gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist)
   ret@lon = min_lon
   ret@val = retval(0,2)
   return ret
-else
-  return False
 end if
+end if
+return False
 end
 
 undef("is_maxima")
@@ -380,7 +446,13 @@ function is_maxima(mslp, lat,lon, dist)
 local var_sub, loc_max, lmi, locs, min_lat, ret, mslp, lat, lon, dist,retval
 begin
 ;print(lat+"   "+lon)
-retval = get_mass_center(mslp, (/lat, lon/) )
+
+retval =  loc_max_dist(mslp, True, dist, (/lat, lon/) )
+if(any(retval))
+lat = retval@lat
+lon = retval@lon
+
+retval := get_mass_center(mslp, (/lat, lon/) )
 min_lat = retval(0,0)
 min_lon = retval(0,1)
 
@@ -390,9 +462,9 @@ if( gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist .and. retval(0,2) .gt. 
   ret@lon = min_lon
   ret@val = retval(0,2)
   return ret
-else
-  return False
 end if
+end if
+  return False
 end
 
 
@@ -413,100 +485,6 @@ else
   return False
 end if
 end
-
-
-
-;undef("check_closed_contour")
-;function check_closed_contour(data, in_locs, critvalue)
-;local fake_wks, fakeres, fakeplot, dimz, rankz, nloc, retval, center_loc,\
-;    crits, loop, interval, cVal, iso, j,b,e,x,y, critvalue, data, closed
-;begin
-;
-;fake_wks = create "fake" imageWorkstationClass noparent
-;"wkHeight":2000
-;"wkWidth":2000
-;end create
-;
-;;fake_wks = gsn_open_wks("png","")
-;fakeres= True
-;fakeres@gsnDraw = False
-;fakeres@gsnFrame = False
-;fakeplot = gsn_csm_contour(fake_wks, data, fakeres)
-;
-;dimz = dimsizes(in_locs)
-;rankz = dimsizes(dimz)
-;if(rankz .eq.2)
-;  nloc = dimz(0)
-;  retval = new(nloc, logical)
-;  center_loc = in_locs
-;else
-;  retval = new( 1, logical)
-;  nloc = 1
-;  center_loc = new((/1, dimz(0)/), float)
-;  center_loc(0,:) = in_locs
-;end if
-;
-;crits = new(nloc, float)
-;crits = tofloat(critvalue)
-;
-;loop = get_res_value_keep(critvalue, "loop", False)
-;interval = get_res_value_keep(critvalue, "interval", 1.)
-;max_size = get_res_value_keep(critvalue, "max_size", 5e6)
-;min_size = get_res_value_keep(critvalue, "min_size", 1e5)
-;
-;area = new(dimsizes(retval), float)
-;keep_start = new(dimsizes(retval), integer)
-;keep_size = new(dimsizes(retval), integer)
-;keep_y = 0.
-;keep_x = 0.
-;
-;do l=0, nloc-1
-; if(ismissing(center_loc(l,0))) continue end if
-;
-;  cVal = crits(l)
-;  ;closed = False
-;  do while( (cVal .le. crits(l)) .or. (loop .and. closed)   )
-;   iso := get_isolines(fakeplot, cVal)
-;   do j = 0, iso@segment_count -1
-;    b = iso@start_point(j)
-;    e = b + iso@n_points(j) - 1
-;    if(iso(0,b).eq.iso(0,e) .and. iso(1,b).eq.iso(1,e))
-;      y :=iso(0,b:e)
-;      x := iso(1,b:e)
-;      closed = gc_inout(center_loc(l,0), center_loc(l,1), y, x)
-;      if(closed)
-;        if( .not. gc_clkwise(y, x) )
-;          y = y(::-1)
-;          x = x(::-1)
-;        end if
-;       area(l) = area_poly_sphere(y, x, 6371)
-;        if( (area(l) .gt. min_size) .and. (area(l) .lt. max_size))
-;          retval(l) = True
-;          keep_start(l) = dimsizes(keep_y)
-;          keep_size(l) = dimsizes(y)
-;          keep_y := array_append_record(keep_y, y,0)
-;          keep_x := array_append_record(keep_x, x,0)
-;   ;      retval@lats := y
-;   ;      retval@lons := x
-;   ;      retval@pres = cVal
-;          break
-;       end if
-;      end if
-;    end if
-;   end do
-;   cVal := cVal + interval
-;  end do
-;end do
-;retval@area = area
-;retval@start_point = keep_start
-;retval@n_points = keep_size
-;retval@y = keep_y
-;retval@x = keep_x
-;;delete(fake_wks)
-;return( retval )
-;end
-
-
 
 undef("get_mand_positions")
 ;;;;;;;;;;;;; Get 6 center locations using same variables as Marchok GFDL
@@ -645,6 +623,11 @@ maxes_uwnd := circle_avg_m_point(uwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
 maxes_vwnd := circle_avg_m_point(vwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
 easterly := ind(maxes_uwnd .lt. 1)     ;; easterly with a bit of wiggle room
 maxes_mass := maxes_mass(easterly,:)
+if(dimsizes(easterly).eq.1)
+ retval := new( (/1,3/), float)
+ retval(0,:) = maxes_mass
+ maxes_mass := retval
+end if
 
 ;;;;;;;;;;;;;   Recenter potential targets on combined wave location  ;;; too slow to do here. 
 ;tmp_wave_locs := get_wave_positions(time, maxes_mass(:,0), maxes_mass(:,1), 600)
@@ -768,25 +751,25 @@ begin
 return(temp_min)
 end
 
-
-undef("get_aux_variables")
-function get_aux_variables(in_time, in_lat, in_lon)
+undef("check_TC_characteristics")
+function check_TC_characteristics(in_time, in_lat, in_lon)
 local opt, hgt, hgtd
 begin
 
 ;;;;;   Thickness Anomaly   ;; is Warm core? ;;;;; ;;;;; ;;;;; 
-    opt := True
-    opt@levs = (/200,850/)
-    opt@levSelection = "Explicit"
-    hgt := grab_data(in_time, "g", opt)
-    hgtd := hgt(0,:,:) - hgt(1,:,:)
-    copy_VarCoords(hgt(0,:,:), hgtd)
-    thick_max := is_env_maxima(hgtd, in_lat,in_lon)
+;    opt := True
+;    opt@levs = (/200,850/)
+;    opt@levSelection = "Explicit"
+;    hgt := grab_data(in_time, "g", opt)
+;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;    copy_VarCoords(hgt(0,:,:), hgtd)
+;    thick_max := is_env_maxima(hgtd, in_lat,in_lon)
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-    data := grab_data(in_time, "pmsl", False)
-    temp_min := is_minima(data, in_lat, in_lon, 150.) 
+    data := grab_data(in_time, "mslp", False)
+    locs = (/in_lat, in_lon/)
+    temp_min :=  loc_max_dist(data, True, 200, locs); (data, in_lat, in_lon, 200.) 
     if(temp_min)
     crit := temp_min@val
     crit = crit+200.
@@ -800,29 +783,88 @@ begin
 
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-    opt := True
-    opt@levs = (/600,900/)
-    opt@levSelection = "Explicit"
-    hgt := grab_data(in_time, "g", opt)
-    hgtd := hgt(0,:,:) - hgt(1,:,:)
-    copy_VarCoords(hgt(0,:,:), hgtd)
-    vtl := is_env_maxima(hgtd, in_lat,in_lon)
+;    opt := True
+;    opt@levs = (/600,900/)
+;    opt@levSelection = "Explicit"
+;    hgt := grab_data(in_time, "g", opt)
+;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;    copy_VarCoords(hgt(0,:,:), hgtd)
+;    vtl := is_env_maxima(hgtd, in_lat,in_lon)
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
-    opt := True
-    opt@levs = (/300,600/)
-    opt@levSelection = "Explicit"
-    hgt := grab_data(in_time, "g", opt)
-    hgtd := hgt(0,:,:) - hgt(1,:,:)
-    copy_VarCoords(hgt(0,:,:), hgtd)
-    vtu := is_env_maxima(hgtd, in_lat,in_lon)
+;    opt := True
+;    opt@levs = (/300,600/)
+;    opt@levSelection = "Explicit"
+;    hgt := grab_data(in_time, "g", opt)
+;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;    copy_VarCoords(hgt(0,:,:), hgtd)
+;    vtu := is_env_maxima(hgtd, in_lat,in_lon)
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
 aux_data = new( 4, float)
-aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
+;aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
 aux_data(1) = get_res_value(mslp_closed, "pres", aux_data@_FillValue)
-aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
-aux_data(3) = get_res_value(vtu, "val", aux_data@_FillValue)
+;aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
+;aux_data(3) = get_res_value(vtu, "val", aux_data@_FillValue)
+
+return(aux_data)
+end 
+
+
+undef("get_aux_variables")
+function get_aux_variables(in_time, in_lat, in_lon)
+local opt, hgt, hgtd
+begin
+
+;;;;;   Thickness Anomaly   ;; is Warm core? ;;;;; ;;;;; ;;;;; 
+;    opt := True
+;    opt@levs = (/200,850/)
+;    opt@levSelection = "Explicit"
+;    hgt := grab_data(in_time, "g", opt)
+;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;    copy_VarCoords(hgt(0,:,:), hgtd)
+;    thick_max := is_env_maxima(hgtd, in_lat,in_lon)
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+    data := grab_data(in_time, "pmsl", False)
+    temp_min := is_minima(data, in_lat, in_lon, 200.) 
+    if(temp_min)
+    crit := temp_min@val
+    crit = crit+200.
+    crit@loop = True
+    crit@interval = 200.
+    mslp_closed := check_closed_contour(data, (/ in_lat, in_lon/),crit)
+    else
+      mslp_closed = False
+    end if
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+
+
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;    opt := True
+;    opt@levs = (/600,900/)
+;    opt@levSelection = "Explicit"
+;    hgt := grab_data(in_time, "g", opt)
+;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;    copy_VarCoords(hgt(0,:,:), hgtd)
+;    vtl := is_env_maxima(hgtd, in_lat,in_lon)
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+
+;    opt := True
+;    opt@levs = (/300,600/)
+;    opt@levSelection = "Explicit"
+;    hgt := grab_data(in_time, "g", opt)
+;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;    copy_VarCoords(hgt(0,:,:), hgtd)
+;    vtu := is_env_maxima(hgtd, in_lat,in_lon)
+;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+
+aux_data = new( 4, float)
+;aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
+aux_data(1) = get_res_value(mslp_closed, "pres", aux_data@_FillValue)
+;aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
+;aux_data(3) = get_res_value(vtu, "val", aux_data@_FillValue)
 
 return(aux_data)
 end 
