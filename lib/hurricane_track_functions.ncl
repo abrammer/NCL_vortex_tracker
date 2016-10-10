@@ -191,7 +191,7 @@ end
 undef("loc_min_dist")
 function loc_min_dist(data, cyclic, dist, inlocs)
 local data, cyclic, dist, locs,\
- maxs, dimnames, mlons, mlats, dists, dist_ind, nmadata, new_max
+ maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max
 begin
 
   maxs = local_min(data, cyclic, 0.)
