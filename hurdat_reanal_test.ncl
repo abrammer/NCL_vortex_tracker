@@ -191,7 +191,7 @@ do t=0, dimsizes(time)-1
     end if
     outlocs@lat := new_loc(0,:)
     outlocs@lon :=new_loc(1,:)
-;    check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
+   check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
   else
   if(all(ismissing(  lat(storms(s),t:))))
    break
