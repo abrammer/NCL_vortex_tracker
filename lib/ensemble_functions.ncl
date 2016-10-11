@@ -1,3 +1,5 @@
+load "~/NCL/functions/remove_loops/remove_loops.ncl"
+
 undef("remove_line_loops")
 function remove_line_loops(cone_in)
 local nc, ii, md, nmin, cone, cone_in
@@ -180,6 +182,13 @@ cone_lons := array_append_record(cone_lons, cone_lons(0),0)
 cone = new( (/2, 1001/), float)
 cone(0,:) = runave( linint1(fspan(0,100, dimsizes(cone_lats)), cone_lats, True, fspan(0,100,1001), 0), 40, -1)
 cone(1,:) = runave( linint1(fspan(0,100, dimsizes(cone_lats)), cone_lons, True, fspan(0,100,1001), 0), 40, -1)
+
+coned :=    remove_loops(cone) 
+npts = dimsizes(coned(0,:))
+cone(0,:) = runave( linint1(fspan(0,100, npts), coned(0,:), True, fspan(0,100,1001), 0), 40, -1)
+cone(1,:) = runave( linint1(fspan(0,100, npts), coned(1,:), True, fspan(0,100,1001), 0), 40, -1)
+
+
 return cone
 end 
 
