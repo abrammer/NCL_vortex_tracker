@@ -42,7 +42,6 @@ else
   center_loc(0,:) = in_locs
 end if
 
-print(nloc)
 retval = False
 crits = new(nloc, float)
 crits = tofloat(critvalue)
@@ -52,7 +51,7 @@ interval = get_res_value_keep(critvalue, "interval", 1.)
 max_size = get_res_value_keep(critvalue, "max_size", 5e6)
 min_size = get_res_value_keep(critvalue, "min_size", 1e5)
 if(loop)
-min_size = 1e4
+min_size = 1e3
 end if
 area = new(dimsizes(retval), float)
 keep_start = new(dimsizes(retval), integer)
@@ -61,12 +60,16 @@ keep_val = new(dimsizes(retval), float)
 
 keep_y = 0.
 keep_x = 0.
-
 do l=0, nloc-1
- if(ismissing(center_loc(l,0))) continue end if
-
+;print("-==============-")
+;print("l:"+l)
+ if(ismissing(center_loc(l,0)) .or.ismissing( crits(l)) ) continue end if
+;print("loc index :"+l)
   cVal = crits(l)
-  ;closed = False
+  closed = False
+;  print("---loop:"+loop)
+;  print("---closed:"+closed)
+;  print("---cVal:"+cVal)
   do while( (cVal .le. crits(l)) .or. (loop .and. closed)   )
    iso := get_isolines(fakeplot, cVal)
    do j = 0, iso@segment_count -1
@@ -82,7 +85,11 @@ do l=0, nloc-1
           x = x(::-1)
         end if
        radius := gc_latlon(center_loc(l,0),center_loc(l,1),y, x,0,4) > 150
-       t_area = area_poly_sphere(y, x, 6371)           
+       t_area = area_poly_sphere(y, x, 6371)     
+;      print("Depth:"+(cVal - (crits(l)-interval) ))
+;      print("t_area:"+t_area)
+;      print("min_radius:"+min(radius))
+;      print("max_radius:"+max(radius))      
         if( \
         (t_area .gt. min_size) .and. (t_area .lt. max_size) \
        .and. (max(radius) .le. 2.5*min(radius) ) )
@@ -103,6 +110,9 @@ do l=0, nloc-1
     end if
    end do
    cVal := cVal + interval
+;   print("---loop:"+loop)
+;   print("---closed:"+closed)
+;   print("---cVal:"+cVal)
   end do
 end do
 retval@val = keep_val
