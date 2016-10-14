@@ -47,7 +47,7 @@ if(ismissing(vi))
   return(default_fillvalue("float"))
 end if
 
-gribnames = (/"HGT_P1_L100_GLL0", "APCP_P11_L1_GLL0_acc6h", "PRMSL_P1_L101_GLL0_1", "UGRD_P1_L100_GLL0", "VGRD_P1_L100_GLL0"/)
+gribnames = (/"HGT_P1_L100_GLL0", "APCP_P11_L1_GLL0_acc6h", "PRMSL_P1_L101_GLL0", "UGRD_P1_L100_GLL0", "VGRD_P1_L100_GLL0"/)
 vars = (/"hgt_pres",  "apcp_sfc" ,"pres_msl", "ugrd_pres", "vgrd_pres"/)
 dims= (/4,3,3,4,4/)-1
 
