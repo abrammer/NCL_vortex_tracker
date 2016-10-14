@@ -147,7 +147,7 @@ end
 undef("loc_max_dist")
 function loc_max_dist(x, cyclic, dist, inlocs)
 local x, cyclic, dist, locs,\
- maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max
+ maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max,inlocs
 begin
 
   maxs = local_max(x, cyclic, 0.)
@@ -191,7 +191,7 @@ end
 undef("loc_min_dist")
 function loc_min_dist(data, cyclic, dist, inlocs)
 local data, cyclic, dist, locs,\
- maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max
+ maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max,inlocs
 begin
 
   maxs = local_min(data, cyclic, 0.)
@@ -420,7 +420,7 @@ end
 
 undef("is_minima")
 function is_minima(data, lat,lon, dist)
-local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret,data
+local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret,data, lat, lon
 begin
 data@minima = True
 retval =  loc_min_dist(data, True, dist*1.5, (/lat, lon/) )
@@ -757,7 +757,7 @@ return(temp_min)
 end
 
 undef("check_TC_characteristics")
-function check_TC_characteristics(in_time, in_lat, in_lon)
+function check_TC_characteristics(in_time, in_lat, in_lon, opt)
 local opt, hgt, hgtd
 begin
 
