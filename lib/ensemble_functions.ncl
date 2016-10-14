@@ -118,6 +118,8 @@ function make_cone(tcdata, rmaxhr)
 local nens, nmi, mean_locs, wgt, ti, mean_lat, mean_lon, mean_track, ens_spread,\
      lcone, rcone, end_cone, start_cone, cone_lats, cone_lons, cone, t,r, maxhr, rmaxhr
 begin
+cone = new( (/2, 1001/), float)
+
 nens = get_res_value_keep(tcdata, "nens", 21)
 
 ; nmi := ind(dim_num_n(.not.ismissing(tcdata(0,:,:)),0) .gt. nens/10. ) 
@@ -140,7 +142,7 @@ nens = get_res_value_keep(tcdata, "nens", 21)
 
  mean_lat =  cubicmsg(mean_lat, False)
  mean_lon =  cubicmsg(mean_lon, False)
-
+if(dimsizes(mean_lat&time).lt.2) return cone end if 
  mean_track := track_dir_dist(mean_lat({:maxhr}), mean_lon({:maxhr}))
  errors := along_across_error(mean_lat, mean_lon, tcdata(0,:,{mean_lat&time}), tcdata(1,:,{mean_lat&time}))
  ens_spread := dim_stddev_n(errors(1,:,:),0)
