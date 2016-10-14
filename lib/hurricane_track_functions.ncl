@@ -772,18 +772,27 @@ begin
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-    data := grab_data(in_time, "mslp", False)
+    data := grab_data(in_time, "mslp", opt)
     locs = (/in_lat, in_lon/)
-    temp_min :=  loc_max_dist(data, True, 200, locs); (data, in_lat, in_lon, 200.) 
-    if(temp_min)
+    temp_min :=  loc_min_dist(data, True, 200, locs); (data, in_lat, in_lon, 200.) 
+
+    loc_data := new( (/ dimsizes(in_lat),5 /), float)
+    loc_data(:,0) = in_lat
+    loc_data(:,1) = in_lon
+
     crit := temp_min@val
-    crit = crit+200.
+    crit = crit+100.
+    crit = crit > 98000
     crit@loop = True
-    crit@interval = 200.
-    mslp_closed := check_closed_contour(data, (/ in_lat, in_lon/),crit)
-    else
-      mslp_closed = False
-    end if
+    crit@interval = 100.
+    mslp_closed := check_closed_contour(data, loc_data ,crit)
+    loc_data(:,2) = temp_min@val
+    loc_data(:,3) = mslp_closed@val
+    loc_data(:,4) = mslp_closed@area
+    
+;    else
+;      mslp_closed = False
+;    end if
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
 
@@ -806,13 +815,13 @@ begin
 ;    vtu := is_env_maxima(hgtd, in_lat,in_lon)
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
-aux_data = new( 4, float)
-;aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
-aux_data(1) = get_res_value(mslp_closed, "pres", aux_data@_FillValue)
-;aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
+;aux_data = new( 4, float)
+;;aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
+;aux_data(1) = get_res_value(mslp_closed, "pres", aux_data@_FillValue)
+;;aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
 ;aux_data(3) = get_res_value(vtu, "val", aux_data@_FillValue)
 
-return(aux_data)
+return(loc_data(:,2:))
 end 
 
 
@@ -839,7 +848,7 @@ begin
     crit = crit+200.
     crit@loop = True
     crit@interval = 200.
-    mslp_closed := check_closed_contour(data, (/ in_lat, in_lon/),crit)
+    mslp_closed := check_closed_contour(data, loc_data,crit)
     else
       mslp_closed = False
     end if
