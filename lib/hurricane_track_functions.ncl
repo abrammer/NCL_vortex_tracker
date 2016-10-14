@@ -426,19 +426,19 @@ data@minima = True
 retval =  loc_min_dist(data, True, dist*1.5, (/lat, lon/) )
 if(any(retval))
 
-retval := get_mass_center(data, (/retval@lat, retval@lon/) )
-min_lat = retval(0,0)
-min_lon = retval(0,1)
+ retval := get_mass_center(data, (/retval@lat, retval@lon/) )
+ min_lat = retval(0,0)
+ min_lon = retval(0,1)
 
-if( gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist)
-  ret = True
-  ret@lat = min_lat
-  ret@lon = min_lon
-  ret@val = retval(0,2)
-  return ret
-end if
-end if
-return False
+  if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist)
+   ret = True
+   ret@lat = min_lat
+   ret@lon = min_lon
+   ret@val = retval(0,2)
+   return ret
+  end if
+ end if
+ return False
 end
 
 undef("is_maxima")
@@ -450,19 +450,19 @@ begin
 retval =  loc_max_dist(mslp, True, dist*1.5, (/lat, lon/) )
 if(any(retval))
 
-retval := get_mass_center(mslp, (/retval@lat, retval@lon/) )
-min_lat = retval(0,0)
-min_lon = retval(0,1)
+ retval := get_mass_center(mslp, (/retval@lat, retval@lon/) )
+ min_lat = retval(0,0)
+ min_lon = retval(0,1)
 
-if( gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist .and. retval(0,2) .gt. 0. )
-  ret = True
-  ret@lat = min_lat
-  ret@lon = min_lon
-  ret@val = retval(0,2)
-  return ret
-end if
-end if
-  return False
+ if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist .and. retval(0,2) .gt. 0. )
+   ret = True
+   ret@lat = min_lat
+   ret@lon = min_lon
+   ret@val = retval(0,2)
+   return ret
+  end if
+ end if
+ return False
 end
 
 
