@@ -416,6 +416,15 @@ else
    n=n+1
   end do
 
+
+    if( sub_scale(1) .lt. min(data&lon))
+         sub_scale(1) =  sub_scale(1)+360.
+    end if
+    if( sub_scale(1) .gt. max(data&lon))
+        sub_scale(1) =  sub_scale(1)-360.
+    end if
+
+
 ;res = True
 ;res@cnFillOn = False
 ;res@cnLevelSpacingF = 50
