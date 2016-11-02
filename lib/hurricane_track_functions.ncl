@@ -637,18 +637,20 @@ end
 
 undef("get_starting_targets")
 function get_starting_targets(time, lat_bds[2], lon_bds[2], opt)
-local min_thresh, cv, uwnd, vwnd, maxes, maxes_mass, easterly, tmp_wave_locs
+local min_thresh, cv, uwnd, vwnd, maxes, maxes_mass, easterly, tmp_wave_locs, retval
 begin
 rkm = get_res_value_keep(opt, "rkm",300)
 min_thresh = get_res_value_keep(opt, "min_threshold", 0.1)
 
 cv := grab_data(time, "ow", opt)
 cv = circle_avg_m(cv, rkm)
-;uwnd := grab_data(time, "u", opt)
-;vwnd := grab_data(time, "v", opt)
-
 
 maxes := loc_max(cv({lat_bds(0):lat_bds(1)},{lon_bds(0):lon_bds(1)}), True, min_thresh)
+if(maxes .eq. 0)
+  maxes_mass := new( (/1, 3/), float)
+  return maxes_mass
+end if
+
 maxes_mass := new( (/maxes, 3/), float)
 do m=0, maxes-1
  maxes_mass(m,:) =  get_mass_center(cv, (/maxes@lat(m), maxes@lon(m)/) )
@@ -656,7 +658,16 @@ end do
 
 ;;;;;;;;;;  Remove duplicate locations
 maxes_mass := unique_locations(maxes_mass, 200.)
-maxes_mass := maxes_mass(ind(.not.ismissing(maxes_mass(:,0))),:)        
+keep_inds = ind(.not.ismissing(maxes_mass(:,0)))
+if(dimsizes(keep_inds).eq.1)
+ retval := new( (/1,3/), float)
+ if(.not.all(ismissing(keep_inds)))
+   retval(0,:) = maxes_mass(keep_inds,:)
+ end if
+else
+ retval := maxes_mass(keep_inds,:)        
+end if
+
 ;;;;;;;;;;;;;;;;;;;;;
 
 ;maxes_uwnd := circle_avg_m_point(uwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
@@ -674,7 +685,7 @@ maxes_mass := maxes_mass(ind(.not.ismissing(maxes_mass(:,0))),:)
 ;maxes_mass := combine_mand_positions( tmp_wave_locs )
 ;maxes_mass := unique_locations(maxes_mass, 250.)
 
-return maxes_mass
+return retval
 end
 
 
@@ -813,7 +824,7 @@ begin
     locs = (/in_lat, in_lon/)
     temp_min :=  loc_min_dist(data, True, 200, locs); (data, in_lat, in_lon, 200.) 
 
-    loc_data := new( (/ dimsizes(in_lat),5 /), float)
+    loc_data := new( (/ dimsizes(in_lat),7 /), float)
     loc_data(:,0) = in_lat
     loc_data(:,1) = in_lon
 
