@@ -845,13 +845,18 @@ begin
 
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-;    opt := True
-;    opt@levs = (/600,900/)
-;    opt@levSelection = "Explicit"
-;    hgt := grab_data(in_time, "g", opt)
-;    hgtd := hgt(0,:,:) - hgt(1,:,:)
-;    copy_VarCoords(hgt(0,:,:), hgtd)
-;    vtl := is_env_maxima(hgtd, in_lat,in_lon)
+   g_opt := True
+    copy_VarAtts(opt, g_opt)
+   g_opt@levs := (/200,850/)
+   g_opt@levSelection := "Explicit"
+   hgt := grab_data(in_time, "g", g_opt)
+   hgtd := hgt(0,:,:) - hgt(1,:,:)
+   copy_VarCoords(hgt(0,:,:), hgtd)
+   hgt_max := loc_max_dist(hgtd,True, 200, locs)
+   loc_data(:,5) =  hgt_max@val
+
+;   vtu := is_env_maxima(hgtd, locs(0),locs(1))
+;   loc_data(:,6) =  get_res_value_keep(vtu, "val",loc_data(:,6) )
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
 
 ;    opt := True
