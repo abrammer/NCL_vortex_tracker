@@ -523,11 +523,12 @@ vars = (/  "pmsl","vr",  "g","g","vr","vr", "uv", "uv"/)
 opts := (/False,   True,True,True, True, True, True, True/)
 levs = (/  -999., 850,  850,  700, 700,   925, 850, 700/)
 minima=(/ True,   False,True, True, False, False, True, True/)
-rkms =(/  500,    500., 350, 350, 350, 350, 125, 125/)
+rkms =(/  300,    300., 300, 300, 300, 300, 125, 125/)
 
 dimz = dimsizes(in_lat)
 mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
 mand_data@_FillValue = default_fillvalue("float")
+
 if(.not. all(ismissing(in_lat)))
  do v=0, dimsizes(vars)-1
   opt = opts(v)
@@ -539,16 +540,24 @@ if(.not. all(ismissing(in_lat)))
   end if
   data@rkm = rkms(v)
 
-  locs = new( (/dimz(0), 2/), float)
-  locs(:,0) = in_lat
-  locs(:,1) = in_lon
-  mand_data(:,:2,v) = get_mass_center(data, locs)    
-  if(v.eq.0 .and. any(.not.ismissing( mand_data(:,0,0))) )
-   nmi := ind(.not.ismissing( mand_data(:,0,0)))
-   in_lat(nmi) = dim_avg_n((/in_lat(nmi), mand_data(nmi,0,0)/),0)
-   in_lon(nmi) = dim_avg_n((/in_lon(nmi), mand_data(nmi,1,0)/),0)
-  end if
- end do
+    do l=0, dimsizes(in_lat)-1
+      if(.not. ( ismissing(in_lat(l)) .and. ismissing(in_lon(l))) )
+        if(  data@minima )
+          temp_min := is_minima(data, in_lat(l), in_lon(l), data@rkm) 
+        else
+          temp_min := is_maxima(data, in_lat(l), in_lon(l), data@rkm)
+        end if
+;      if(.not.ismissing(temp_min@lat))
+;         check_centerfix(wks, data, (/temp_min@lat, temp_min@lon/))
+;      else
+;        check_centerfix(wks, data, (/in_lat(l), in_lon(l)/))
+;     end if
+        mand_data(l,0,v)  = get_res_value(temp_min, "lat", mand_data@_FillValue)
+        mand_data(l,1,v)  = get_res_value(temp_min, "lon", mand_data@_FillValue)
+        mand_data(l,2,v)  = get_res_value(temp_min, "val", mand_data@_FillValue)  
+      end if
+    end do
+  end do
 end if
 mand_data!0 = "systems"
 mand_data!1 = "data"
@@ -577,7 +586,9 @@ levs = (/ 850,   700,   500,    850,    850,     700/)
 r = (/ 350.,     350,   350,    350,    250,     250/)
 minima =(/False, False, False, True,    False,  False/)
 
-mand_data = new( (/dimsizes(in_lat), 3, dimsizes(vars)/), float)
+dimz = dimsizes(in_lat)
+mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
+mand_data@_FillValue = default_fillvalue("float")
 
 if(.not. all(ismissing(in_lat)))
   do v=0, dimsizes(vars)-1
@@ -588,7 +599,7 @@ if(.not. all(ismissing(in_lat)))
     data!0 = "lat"
     data!1 = "lon"
 ;    pvs(data)
-;    data = circle_avg_m(data, r(v))
+    data = circle_avg_m(data, 250.)
     do l=0, dimsizes(in_lat)-1
       if(.not. ( ismissing(in_lat(l)) .and. ismissing(in_lon(l))) )
         if(minima(v))
