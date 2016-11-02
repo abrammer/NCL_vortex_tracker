@@ -445,49 +445,49 @@ end
 
 
 undef("is_minima")
-function is_minima(data, lat,lon, dist)
+function is_minima(data, in_lat,in_lon, dist)
 local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret,data, lat, lon
 begin
 data@minima = True
-retval =  loc_min_dist(data, True, dist*1.5, (/lat, lon/) )
+retval =  loc_min_dist(data, True, dist, (/in_lat, in_lon/) )
 if(any(retval))
 
  retval := get_mass_center(data, (/retval@lat, retval@lon/) )
  min_lat = retval(0,0)
  min_lon = retval(0,1)
 
-  if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist)
+  if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(in_lat, in_lon, min_lat, min_lon, 5, 4).lt. dist)
    ret = True
    ret@lat = min_lat
    ret@lon = min_lon
    ret@val = retval(0,2)
    return ret
   end if
- end if
- return False
+end if
+return False
 end
 
 undef("is_maxima")
-function is_maxima(mslp, lat,lon, dist)
+function is_maxima(data, in_lat,in_lon, dist)
 local var_sub, loc_max, lmi, locs, min_lat, ret, mslp, lat, lon, dist,retval
 begin
 ;print(lat+"   "+lon)
 
-retval =  loc_max_dist(mslp, True, dist*1.5, (/lat, lon/) )
+retval =  loc_max_dist(data, True, dist, (/in_lat, in_lon/) )
 if(any(retval))
 
- retval := get_mass_center(mslp, (/retval@lat, retval@lon/) )
+ retval := get_mass_center(data, (/retval@lat, retval@lon/) )
  min_lat = retval(0,0)
  min_lon = retval(0,1)
 
- if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(lat, lon, min_lat, min_lon, 5, 4).lt. dist .and. retval(0,2) .gt. 0. )
+  if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(in_lat, in_lon, min_lat, min_lon, 5, 4).lt. dist)
    ret = True
    ret@lat = min_lat
    ret@lon = min_lon
    ret@val = retval(0,2)
    return ret
   end if
- end if
+  end if
  return False
 end
 
