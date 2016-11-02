@@ -955,3 +955,30 @@ end if
 return( new_data )
 end
 
+
+
+
+undef("nudge_lons")
+function nudge_lons( lons, obs_lon )
+begin
+    if( obs_lon - lons(0) .lt. -90 )
+        obs_lon =obs_lon+360.
+    end if
+    if( obs_lon - lons(0) .gt. 90 )
+        obs_lon =obs_lon-360.
+    end if
+lons(1:) = lons(1:) + (obs_lon - lons(0))/2.
+return wrap_lon(lons)
+end 
+
+
+
+undef("nudge_lats")
+function nudge_lats( lats, obs_lat )
+begin
+lats(1:) = lats(1:) + (obs_lat - lats(0))/2.
+return (lats)
+end 
+
+
+
