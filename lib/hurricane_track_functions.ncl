@@ -262,7 +262,7 @@ begin
   max_thres = ind(maxs@maxval .ge. thres )
   dimnames = getVarDimNames(x)
   if(all(ismissing(max_thres)))
-      new_max = 0.
+      new_max = 0
   else
     new_max = dimsizes(max_thres)
     new_max@val = maxs@maxval(max_thres)
@@ -283,7 +283,7 @@ begin
   min_thres = ind(mins@minval .le. thres )
   dimnames = getVarDimNames(x)
   if(all(ismissing(min_thres)))
-      new_min = 0.
+      new_min = 0
   else
     new_min = dimsizes(min_thres)
     new_min@val = mins@minval(min_thres)
