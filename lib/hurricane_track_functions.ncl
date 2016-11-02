@@ -17,6 +17,23 @@ local dims,nmi
 end
 
 
+undef("dum_cumcount")
+function dum_cumcount(x[*][*]:logical)
+local x, nx, y, i
+begin
+  nx := dimsizes(x)
+  y := new( nx, integer)
+  y = 0
+  do i=0,nx(1)-1
+    y(:,i) = where( x(:,i), y(:,(i-1>0))+1, 0)
+  end do
+  copy_VarCoords(x, y)
+return y
+end
+
+
+
+
 undef("unwrap_lon")
 function unwrap_lon(lon, thresh)
 local lon, dl, nl,isM,disc,diff,nmi
