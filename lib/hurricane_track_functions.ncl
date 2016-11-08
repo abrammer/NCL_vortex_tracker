@@ -269,48 +269,48 @@ begin
 end
 
 
-undef("loc_max")
-function loc_max(x, cyclic, thres)
-local maxs, new_max, max_thres
-begin
-  maxs = local_max(x, cyclic, 0.)
-  if(all(maxs.eq.0))
-     return(0)
-  end if
-  max_thres = ind(maxs@maxval .ge. thres )
-  dimnames = getVarDimNames(x)
-  if(all(ismissing(max_thres)))
-      new_max = 0
-  else
-    new_max = dimsizes(max_thres)
-    new_max@val = maxs@maxval(max_thres)
-    new_max@$dimnames(1)$ = x&$dimnames(1)$(maxs@xi(max_thres))
-    new_max@$dimnames(0)$ = x&$dimnames(0)$(maxs@yi(max_thres))
-  end if
-  return(new_max)
-end
-
-undef("loc_min")
-function loc_min(x, cyclic, thres)
-local mins, new_min, min_thres, dimnames
-begin
-  mins = local_min(x, cyclic, 0.)
-  if(all(mins.eq.0))
-     return(0)
-  end if
-  min_thres = ind(mins@minval .le. thres )
-  dimnames = getVarDimNames(x)
-  if(all(ismissing(min_thres)))
-      new_min = 0
-  else
-    new_min = dimsizes(min_thres)
-    new_min@val = mins@minval(min_thres)
-    new_min@$dimnames(1)$ = x&$dimnames(1)$(mins@xi(min_thres))
-    new_min@$dimnames(0)$ = x&$dimnames(0)$(mins@yi(min_thres))
-  end if
-  return(new_min)
-end
-
+;undef("loc_max")
+;function loc_max(x, cyclic, thres)
+;local maxs, new_max, max_thres
+;begin
+;  maxs = local_max(x, cyclic, 0.)
+;  if(all(maxs.eq.0))
+;     return(0)
+;  end if
+;  max_thres = ind(maxs@maxval .ge. thres )
+;  dimnames = getVarDimNames(x)
+;  if(all(ismissing(max_thres)))
+;      new_max = 0
+;  else
+;    new_max = dimsizes(max_thres)
+;    new_max@val = maxs@maxval(max_thres)
+;    new_max@$dimnames(1)$ = x&$dimnames(1)$(maxs@xi(max_thres))
+;    new_max@$dimnames(0)$ = x&$dimnames(0)$(maxs@yi(max_thres))
+;  end if
+;  return(new_max)
+;end
+;
+;undef("loc_min")
+;function loc_min(x, cyclic, thres)
+;local mins, new_min, min_thres, dimnames
+;begin
+;  mins = local_min(x, cyclic, 0.)
+;  if(all(mins.eq.0))
+;     return(0)
+;  end if
+;  min_thres = ind(mins@minval .le. thres )
+;  dimnames = getVarDimNames(x)
+;  if(all(ismissing(min_thres)))
+;      new_min = 0
+;  else
+;    new_min = dimsizes(min_thres)
+;    new_min@val = mins@minval(min_thres)
+;    new_min@$dimnames(1)$ = x&$dimnames(1)$(mins@xi(min_thres))
+;    new_min@$dimnames(0)$ = x&$dimnames(0)$(mins@yi(min_thres))
+;  end if
+;  return(new_min)
+;end
+;
 
 
 undef("getlatlon_points")
@@ -361,35 +361,35 @@ end
 
 
 
-
-undef("subgrid_location")
-function subgrid_location(data[*][*]:float, lat[1]:numeric, lon[1]:numeric, minima[1]:logical, delta[1]:numeric)
-local lati, loni, lap, lam, lop, lom, subgrid, lats, lons, alat, alon, aval
-begin
-
-;delta = 2   ;  grid points
-
-lati = ind_nearest_coord(lat,data&lat, 0)
-loni = ind_nearest_coord(lon, data&lon, 0)
-lap = lati+delta < dimsizes(data&lat)-1
-lam = lati-delta > 0
-lop = loni+delta < dimsizes(data&lon)-1
-lom = loni-delta > 0
-
-subgrid = data(lam:lap, lom:lop) 
-if(minima)  subgrid = subgrid*-1  end if
-if(any(subgrid.lt.0)) subgrid = subgrid+abs(min(subgrid)) end if
-
-lats = conform(subgrid, subgrid&lat, 0)
-lons = conform(subgrid, subgrid&lon, 1)
-
-
-alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
-alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
-aval = dim_avg_wgt(ndtooned(data(lam:lap, lom:lop)), ndtooned(subgrid), 1)
-
-return( (/alat, alon, aval/) )
-end
+;
+;undef("subgrid_location")
+;function subgrid_location(data[*][*]:float, lat[1]:numeric, lon[1]:numeric, minima[1]:logical, delta[1]:numeric)
+;local lati, loni, lap, lam, lop, lom, subgrid, lats, lons, alat, alon, aval
+;begin
+;
+;;delta = 2   ;  grid points
+;
+;lati = ind_nearest_coord(lat,data&lat, 0)
+;loni = ind_nearest_coord(lon, data&lon, 0)
+;lap = lati+delta < dimsizes(data&lat)-1
+;lam = lati-delta > 0
+;lop = loni+delta < dimsizes(data&lon)-1
+;lom = loni-delta > 0
+;
+;subgrid = data(lam:lap, lom:lop) 
+;if(minima)  subgrid = subgrid*-1  end if
+;if(any(subgrid.lt.0)) subgrid = subgrid+abs(min(subgrid)) end if
+;
+;lats = conform(subgrid, subgrid&lat, 0)
+;lons = conform(subgrid, subgrid&lon, 1)
+;
+;
+;alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
+;alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
+;aval = dim_avg_wgt(ndtooned(data(lam:lap, lom:lop)), ndtooned(subgrid), 1)
+;
+;return( (/alat, alon, aval/) )
+;end
 
 
  
@@ -710,33 +710,33 @@ return retval
 end
 
 
-undef("zScore")
-;;;;;;;;;;;;;  Modified z-score to detect outliers
-;;;;;;;; 
-;Boris Iglewicz and David Hoaglin (1993), "Volume 16: How to Detect and Handle Outliers", The ASQC
-;Basic References in Quality Control: Statistical Techniques, Edward F. Mykytka, Ph.D., Editor.
-;;;;;;;; 
-;;;;;;;; 
-function zScore(lat, lon)
-local  MAD, Mi, lat, lon, dist, nmi
-begin
-nmi = ind(.not. ismissing(lat))
-if(all(ismissing(nmi))) return default_fillvalue("float") end if
-    
-Mi = new(dimsizes(lat), float, default_fillvalue("float"))
-dist = new(dimsizes(lat), float, default_fillvalue("float"))
-
-med_lat = dim_median(lat(nmi))
-med_lon = dim_median(lon(nmi))
-
-dist(nmi) = gc_latlon(med_lat, med_lon, lat(nmi), lon(nmi),0,4)        ;; absolute deviation from median center
-MAD =  dim_median(dist)  > 5.  <100.           ;; Median Absolute Deviation ; min deviation of 10km so up-to 50km deviation allowed
-Mi = (0.6745*dist)/MAD      ;; > 3.5 Considered outlier. 
-
-;print(dist+"    "+Mi)
-
-return(Mi)
-end
+;undef("zScore")
+;;;;;;;;;;;;;;  Modified z-score to detect outliers
+;;;;;;;;; 
+;;Boris Iglewicz and David Hoaglin (1993), "Volume 16: How to Detect and Handle Outliers", The ASQC
+;;Basic References in Quality Control: Statistical Techniques, Edward F. Mykytka, Ph.D., Editor.
+;;;;;;;;; 
+;;;;;;;;; 
+;function zScore(lat, lon)
+;local  MAD, Mi, lat, lon, dist, nmi
+;begin
+;nmi = ind(.not. ismissing(lat))
+;if(all(ismissing(nmi))) return default_fillvalue("float") end if
+;    
+;Mi = new(dimsizes(lat), float, default_fillvalue("float"))
+;dist = new(dimsizes(lat), float, default_fillvalue("float"))
+;
+;med_lat = dim_median(lat(nmi))
+;med_lon = dim_median(lon(nmi))
+;
+;dist(nmi) = gc_latlon(med_lat, med_lon, lat(nmi), lon(nmi),0,4)        ;; absolute deviation from median center
+;MAD =  dim_median(dist)  > 5.  <100.           ;; Median Absolute Deviation ; min deviation of 10km so up-to 50km deviation allowed
+;Mi = (0.6745*dist)/MAD      ;; > 3.5 Considered outlier. 
+;
+;;print(dist+"    "+Mi)
+;
+;return(Mi)
+;end
 
 
 undef("combine_mand_positions")
@@ -814,17 +814,17 @@ end
 
 
 
-undef("get_wind_speed")
-function get_wind_speed(in_time, in_lat, in_lon)
-local opt, u, v, uv, temp_min, maxwnd, in_time, in_lat, in_lon
-begin
-    opt := True
-    opt@levs = (/925/)
-    opt@levSelection = "Explicit"
-    uv := grab_data(in_time, "uv", opt)
-    temp_min := is_maxima(uv, in_lat, in_lon, 250.)
-return(temp_min)
-end
+;undef("get_wind_speed")
+;function get_wind_speed(in_time, in_lat, in_lon)
+;local opt, u, v, uv, temp_min, maxwnd, in_time, in_lat, in_lon
+;begin
+;    opt := True
+;    opt@levs = (/925/)
+;    opt@levSelection = "Explicit"
+;    uv := grab_data(in_time, "uv", opt)
+;    temp_min := is_maxima(uv, in_lat, in_lon, 250.)
+;return(temp_min)
+;end
 
 undef("check_TC_characteristics")
 function check_TC_characteristics(in_time, in_lat, in_lon, opt)
@@ -900,63 +900,63 @@ return(loc_data(:,2:))
 end 
 
 
-undef("get_aux_variables")
-function get_aux_variables(in_time, in_lat, in_lon)
-local opt, hgt, hgtd
-begin
-
-;;;;;   Thickness Anomaly   ;; is Warm core? ;;;;; ;;;;; ;;;;; 
-;    opt := True
-;    opt@levs = (/200,850/)
-;    opt@levSelection = "Explicit"
-;    hgt := grab_data(in_time, "g", opt)
-;    hgtd := hgt(0,:,:) - hgt(1,:,:)
-;    copy_VarCoords(hgt(0,:,:), hgtd)
-;    thick_max := is_env_maxima(hgtd, in_lat,in_lon)
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-    data := grab_data(in_time, "pmsl", False)
-    temp_min := is_minima(data, in_lat, in_lon, 200.) 
-    if(temp_min)
-    crit := temp_min@val
-    crit = crit+200.
-    crit@loop = True
-    crit@interval = 200.
-    mslp_closed := check_closed_contour(data, loc_data,crit)
-    else
-      mslp_closed = False
-    end if
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-
-
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-;    opt := True
-;    opt@levs = (/600,900/)
-;    opt@levSelection = "Explicit"
-;    hgt := grab_data(in_time, "g", opt)
-;    hgtd := hgt(0,:,:) - hgt(1,:,:)
-;    copy_VarCoords(hgt(0,:,:), hgtd)
-;    vtl := is_env_maxima(hgtd, in_lat,in_lon)
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-
-;    opt := True
-;    opt@levs = (/300,600/)
-;    opt@levSelection = "Explicit"
-;    hgt := grab_data(in_time, "g", opt)
-;    hgtd := hgt(0,:,:) - hgt(1,:,:)
-;    copy_VarCoords(hgt(0,:,:), hgtd)
-;    vtu := is_env_maxima(hgtd, in_lat,in_lon)
-;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
-
-aux_data = new( 4, float)
-;aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
-aux_data(1) = get_res_value(mslp_closed, "pres", aux_data@_FillValue)
-;aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
-;aux_data(3) = get_res_value(vtu, "val", aux_data@_FillValue)
-
-return(aux_data)
-end 
+;undef("get_aux_variables")
+;function get_aux_variables(in_time, in_lat, in_lon)
+;local opt, hgt, hgtd
+;begin
+;
+;;;;;;   Thickness Anomaly   ;; is Warm core? ;;;;; ;;;;; ;;;;; 
+;;    opt := True
+;;    opt@levs = (/200,850/)
+;;    opt@levSelection = "Explicit"
+;;    hgt := grab_data(in_time, "g", opt)
+;;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;;    copy_VarCoords(hgt(0,:,:), hgtd)
+;;    thick_max := is_env_maxima(hgtd, in_lat,in_lon)
+;;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;
+;;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;    data := grab_data(in_time, "pmsl", False)
+;    temp_min := is_minima(data, in_lat, in_lon, 200.) 
+;    if(temp_min)
+;    crit := temp_min@val
+;    crit = crit+200.
+;    crit@loop = True
+;    crit@interval = 200.
+;    mslp_closed := check_closed_contour(data, loc_data,crit)
+;    else
+;      mslp_closed = False
+;    end if
+;;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;
+;
+;;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;;    opt := True
+;;    opt@levs = (/600,900/)
+;;    opt@levSelection = "Explicit"
+;;    hgt := grab_data(in_time, "g", opt)
+;;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;;    copy_VarCoords(hgt(0,:,:), hgtd)
+;;    vtl := is_env_maxima(hgtd, in_lat,in_lon)
+;;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;
+;;    opt := True
+;;    opt@levs = (/300,600/)
+;;    opt@levSelection = "Explicit"
+;;    hgt := grab_data(in_time, "g", opt)
+;;    hgtd := hgt(0,:,:) - hgt(1,:,:)
+;;    copy_VarCoords(hgt(0,:,:), hgtd)
+;;    vtu := is_env_maxima(hgtd, in_lat,in_lon)
+;;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+;
+;aux_data = new( 4, float)
+;;aux_data(0) = get_res_value(thick_max, "val", aux_data@_FillValue)
+;aux_data(1) = get_res_value(mslp_closed, "pres", aux_data@_FillValue)
+;;aux_data(2) = get_res_value(vtl, "val", aux_data@_FillValue)
+;;aux_data(3) = get_res_value(vtu, "val", aux_data@_FillValue)
+;
+;return(aux_data)
+;end 
 
 undef("advect_location")
 function advect_location(mand_data, ups, vps, dt)
