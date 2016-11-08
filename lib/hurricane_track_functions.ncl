@@ -346,6 +346,7 @@ dists = gc_latlon(lat, lon, lats, lons, 0, 4)
 dists = ((km - dists) > 0)  / (0.5*km) < 1.
 
 subgrid = subgrid^2 * dists
+subgrid = where(ismissing(data), 0, subgrid)
 
 alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
 alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
