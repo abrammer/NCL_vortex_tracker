@@ -1,3 +1,21 @@
+undef("ab_debug")
+procedure ab_debug(var)
+begin
+if(isdefined("debug_") .and. debug_)
+  if( isstring(var) )
+    print((/var/))
+  end if
+  if( isnumeric(var) )
+    if( product(dimsizes(var)) .lt. 20 )
+      print(var)
+    else
+      printVarSummary(var)
+    end if
+  end if
+end if
+end 
+
+
 
 undef("first")
 function first(x)
@@ -373,8 +391,8 @@ return( (/alat, alon, aval/) )
 end
 
 
-debug = False
-
+ 
+ 
 undef("get_mass_center")
 function get_mass_center(data, locs)
 local minima, rkm,dimz, rankz, retval, pLat, pLon, dx, sublocs, lats, lons, val1d, dist
@@ -397,7 +415,7 @@ else
   retval = new( (/1, dimz(0)>3/), float)
 
   if(any(ismissing(locs(:1))))
-                                    if(debug) print("Missing locs") end if
+   ab_debug("Missing locs")
    return(retval)
   end if
     
