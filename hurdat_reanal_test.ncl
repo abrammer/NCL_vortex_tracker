@@ -12,7 +12,7 @@ load "lib/progress_bar.ncl"
 
 
 model = "cfsr"    ;; used in outfile "Title" attribute
-out_filename = "data/"+model+"_ibtracs_v03r08.nc"
+out_filename = "data/"+model+"_ibtracs_v03r09.nc"
 
 begin
 
@@ -115,15 +115,15 @@ end if
 ;setfileoption("nc","Format", "NetCDF4") 
 ;ncdf = addfile(out_filename, "w")
 
-ncin = addfile("~/data/ibtracs/Allstorms.ibtracs_all.v03r08.nc","r")
-
+ncin = addfile("~/data/ibtracs/Allstorms.ibtracs_all.v03r09.nc","r")
+;
 ;source_lat := short2flt(ncin->source_lat(:,:,c_inds))
 ;source_lat@souce = centers(c_inds)
 ;source_lon := short2flt(ncin->source_lon(:,:,c_inds))
 ;source_lon@souce = centers(c_inds)
 ;lat := dim_avg_n_Wrap( source_lat,2)
 ;lon := dim_avg_n_Wrap( source_lon, 2)
-
+;
 source_type  := ncin->nature_for_mapping
 source_lat := short2flt(ncin->lat_for_mapping(:,:))
 source_lon := short2flt(ncin->lon_for_mapping(:,:))
@@ -138,17 +138,15 @@ year := cd_calendar(times, 0)
 storms := nmi( ind(year(:,0).ge.1979))
 
 storm_id := ncin->storm_sn(storms,:)
-;printVarSummary(storm_id)
 
 rlon = lon
 rlat = lat
 
-;out_ct = dimsizes(ncdf->storm_id)
-;if(out_ct .eq. 1)
-;   out_ct = 0
-;end if
 
-;ss = dimsizes(ncdf->storm_id)
+;wkst = "x11"
+;wkst@wkPause = False
+;wks = gsn_open_wks(wkst,"error_histogram")
+
 do s=0,dimsizes(storms)-1
 progress_bar(s, dimsizes(storms))
 
@@ -167,37 +165,51 @@ lon(storms(s), :)  = linmsg(lon(storms(s), :) , 0)
 lat(storms(s), :)  = linmsg(lat(storms(s), :) , 0)
 lon(storms(s), :) = wrap_lon(lon(storms(s),:))
 
-do t=0, dimsizes(time)-1
+do t=0,  dimsizes(time)-1
   type   := source_type(storms(s),:t)
   in_lat := lat(storms(s),t)
   in_lon := lon(storms(s),t)
   in_time := time(t)
-;  print( in_lat +"   "+in_lon)
- if(.not.ismissing(in_lat))
-    new_loc := rm_single_dims(get_mand_positions(in_time, in_lat, in_lon, 500.))
-    outdata(t,:,:7) = (/ new_loc /)
-    c_loc = combine_mand_positions(new_loc)
-    c_loc = where(abs(c_loc) .gt. 720, c_loc@_FillValue, c_loc)
-;    print( c_loc(0)+"   "+c_loc(1) )
+ if(.not.ismissing(in_lat) .and. toint(in_time)%6 .eq. 0)
+   ab_debug("===== t:"+t)
+   ab_debug( in_lat +"   "+in_lon)
+   new_loc := rm_single_dims(get_mand_positions(in_time, in_lat, in_lon, 250.))
+   outdata(t,:,:7) = (/ new_loc /)
+   c_loc = combine_mand_positions(new_loc)
+   c_loc = where(abs(c_loc) .gt. 720, c_loc@_FillValue, c_loc)
+   ab_debug("c_loc ")
+   ab_debug(c_loc)
    if(.not.ismissing(c_loc(0)))
-      outlocs(t,:) = (/c_loc/)
-;    print(  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
+    ab_debug("location found")
+    outlocs(t,:) = (/c_loc/)
+    ab_debug(  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
     if(t.ne.dimsizes(time)-1 .and.  any(type .eq. 0) )
-;      print("nudging track")
-     lat(storms(s),t+1:) = lat(storms(s),t+1:) + ( c_loc(0) - lat(storms(s),t) )
-     lon(storms(s),t+1:) = lon(storms(s),t+1:) + ( c_loc(1) - lon(storms(s),t) )
-;    print(  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
+     ab_debug(" --- nudging track to model")
+     lon(storms(s),t:) = nudge_lons(  lon(storms(s), t:),  c_loc(1) )
+     lat(storms(s),t:) = nudge_lats(  lat(storms(s), t:),  c_loc(0) )
+     ab_debug(" ---- "+  lat(storms(s),t+1)+"   "+lon(storms(s),t+1)  )
     end if
-    end if
+    else
+     if(t.ne.dimsizes(time)-1  )
+        ab_debug(" ---- "+"t:"+t+"  nudging track to ibtracs")
+        lon(storms(s),t:) = nudge_lons(  lon(storms(s), t:), rlon(storms(s),t) )
+        lat(storms(s),t:) = nudge_lats(  lat(storms(s), t:), rlat(storms(s),t) )
+     end if
+    end if    
     outlocs@lat := new_loc(0,:)
-    outlocs@lon :=new_loc(1,:)
-   check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
+    outlocs@lon := new_loc(1,:)
+    if(isdefined("wks"))
+;    check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/),(/ in_lat, in_lon/) )
+     check_location(wks, in_time, (/rlat(storms(s),t),rlon(storms(s),t)/), outlocs(t,:) )
+    end if
   else
   if(all(ismissing(  lat(storms(s),t:))))
    break
   end if
   end if
 end do
+
+outlocs(:,1)= wrap_lon( outlocs(:,1))
 
 ncdf->storm(s) = (/storms(s)/)
 ncdf->storm_data(s,:dimsizes(time)-1,:,:) = (/outdata/)
@@ -208,9 +220,9 @@ ncdf->storm_sn(s,:) = (/ storm_id(s,:) /)
 end do
 end
 
-wkst = "x11"
-wkst@wkPause = False
-wks=gsn_open_wks(wkst, "")
+;wkst = "x11"
+;wkst@wkPause = False
+;wks=gsn_open_wks(wkst, "")
 
 
 
