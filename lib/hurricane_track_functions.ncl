@@ -738,9 +738,9 @@ if( (num(.not.ismissing(mand_data(0,:5))).le.3 ).or. (all(ismissing(mand_data(0,
     return( (/mand_data@_FillValue, mand_data@_FillValue/) )
  end if 
 
-    zinds := ind( gc_latlon(avg(mand_data(0,:1)), avg(mand_data(1,:1)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+    zinds := ind( gc_latlon(avg(mand_data(0,:1)), avg(mand_data(1,:1)) , mand_data(0,:5), mand_data(1,:5), 0, 4) .lt. 350)
     if(all(ismissing(zinds)))
-	  zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+	  zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:5), mand_data(1,:5), 0, 4) .lt. 350)
  	end if 
     if(dimsizes(zinds).lt.3)
         return( (/mand_data@_FillValue, mand_data@_FillValue/) )
