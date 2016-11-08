@@ -409,6 +409,8 @@ else
   n=1
   sub_scale :=  subgrid_location_km(sublocs,  pLat, pLon,minima, rkm)  
   sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
+;  check_centerfix(wks, sublocs, sub_scale )
+
    n=2 
   do while( rkm/(n-1) .gt. 100 )
    sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
@@ -747,6 +749,7 @@ if( (num(.not.ismissing(mand_data(0,:5))).le.3 ).or. (all(ismissing(mand_data(0,
     dists := gc_latlon(avg_loc(0), avg_loc(1), mand_data(0,6:7), mand_data(1,6:7), 0,4)
     dinds := ind(dists.le.125)
     if(.not.all(ismissing(dinds)))
+        dinds = dinds + 6
         zinds := array_append_record(zinds, dinds, 0)
         avg_loc = dim_avg_n( mand_data(:1,zinds),1)
     end if
