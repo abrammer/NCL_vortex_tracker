@@ -799,6 +799,7 @@ else
 if( num(.not.ismissing(mand_data(0,(/0,1,2,4,5/)))).le.2 ) 
     return( (/mand_data@_FillValue, mand_data@_FillValue/) )
  end if 
+ mand_data(1,:) = unwrap_lon(mand_data(1,:), 50.) ;; fix dateline issue.
  zinds := ind( gc_latlon(avg(mand_data(0,:)), avg(mand_data(1,:)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
 ;print(zinds +"  ")
  if(all(ismissing(zinds)))
