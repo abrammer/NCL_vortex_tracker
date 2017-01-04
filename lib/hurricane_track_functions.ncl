@@ -430,20 +430,22 @@ else
   sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
 ;  check_centerfix(wks, sublocs, sub_scale )
 
-   n=2 
+  n=2 
   do while( rkm/(n-1) .gt. 100 )
    sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
    sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
    n=n+1
   end do
 
-
-    if( sub_scale(1) .lt. min(data&lon))
-         sub_scale(1) =  sub_scale(1)+360.
-    end if
-    if( sub_scale(1) .gt. max(data&lon))
-        sub_scale(1) =  sub_scale(1)-360.
-    end if
+  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, 100.)
+  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, 100.)
+  
+  if( sub_scale(1) .lt. min(data&lon))
+       sub_scale(1) =  sub_scale(1)+360.
+  end if
+  if( sub_scale(1) .gt. max(data&lon))
+      sub_scale(1) =  sub_scale(1)-360.
+  end if
 
 
 ;res = True
