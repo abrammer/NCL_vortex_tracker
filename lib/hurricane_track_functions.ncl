@@ -269,48 +269,48 @@ begin
 end
 
 
-;undef("loc_max")
-;function loc_max(x, cyclic, thres)
-;local maxs, new_max, max_thres
-;begin
-;  maxs = local_max(x, cyclic, 0.)
-;  if(all(maxs.eq.0))
-;     return(0)
-;  end if
-;  max_thres = ind(maxs@maxval .ge. thres )
-;  dimnames = getVarDimNames(x)
-;  if(all(ismissing(max_thres)))
-;      new_max = 0
-;  else
-;    new_max = dimsizes(max_thres)
-;    new_max@val = maxs@maxval(max_thres)
-;    new_max@$dimnames(1)$ = x&$dimnames(1)$(maxs@xi(max_thres))
-;    new_max@$dimnames(0)$ = x&$dimnames(0)$(maxs@yi(max_thres))
-;  end if
-;  return(new_max)
-;end
-;
-;undef("loc_min")
-;function loc_min(x, cyclic, thres)
-;local mins, new_min, min_thres, dimnames
-;begin
-;  mins = local_min(x, cyclic, 0.)
-;  if(all(mins.eq.0))
-;     return(0)
-;  end if
-;  min_thres = ind(mins@minval .le. thres )
-;  dimnames = getVarDimNames(x)
-;  if(all(ismissing(min_thres)))
-;      new_min = 0
-;  else
-;    new_min = dimsizes(min_thres)
-;    new_min@val = mins@minval(min_thres)
-;    new_min@$dimnames(1)$ = x&$dimnames(1)$(mins@xi(min_thres))
-;    new_min@$dimnames(0)$ = x&$dimnames(0)$(mins@yi(min_thres))
-;  end if
-;  return(new_min)
-;end
-;
+undef("loc_max")
+function loc_max(x, cyclic, thres)
+local maxs, new_max, max_thres
+begin
+ maxs = local_max(x, cyclic, 0.)
+ if(all(maxs.eq.0))
+    return(0)
+ end if
+ max_thres = ind(maxs@maxval .ge. thres )
+ dimnames = getVarDimNames(x)
+ if(all(ismissing(max_thres)))
+     new_max = 0
+ else
+   new_max = dimsizes(max_thres)
+   new_max@val = maxs@maxval(max_thres)
+   new_max@$dimnames(1)$ = x&$dimnames(1)$(maxs@xi(max_thres))
+   new_max@$dimnames(0)$ = x&$dimnames(0)$(maxs@yi(max_thres))
+ end if
+ return(new_max)
+end
+
+undef("loc_min")
+function loc_min(x, cyclic, thres)
+local mins, new_min, min_thres, dimnames
+begin
+ mins = local_min(x, cyclic, 0.)
+ if(all(mins.eq.0))
+    return(0)
+ end if
+ min_thres = ind(mins@minval .le. thres )
+ dimnames = getVarDimNames(x)
+ if(all(ismissing(min_thres)))
+     new_min = 0
+ else
+   new_min = dimsizes(min_thres)
+   new_min@val = mins@minval(min_thres)
+   new_min@$dimnames(1)$ = x&$dimnames(1)$(mins@xi(min_thres))
+   new_min@$dimnames(0)$ = x&$dimnames(0)$(mins@yi(min_thres))
+ end if
+ return(new_min)
+end
+
 
 
 undef("getlatlon_points")
