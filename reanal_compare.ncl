@@ -13,6 +13,8 @@ begin
 ;;;;;;;;;;;;;   ibTracs                   ;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+wks = gsn_open_wks("x11","error_histogram")
+
 
 ncin = addfile("~/data/ibtracs/Allstorms.ibtracs_all.v03r09.nc","r")
 lat := short2flt(ncin->lat_for_mapping(:,:) )
@@ -45,58 +47,54 @@ dists = gc_latlon(in_lat, in_lon, slat, slon, 0, 4)
 dists@_FillValue = default_fillvalue(typeof(dists))
 dists = where(ismissing(in_lat),dists@_FillValue, dists)
 dists = where(ismissing(slat),dists@_FillValue, dists)
+dists = where(dists.gt.5000, dists@_FillValue, dists)
 
-dists := toint(dists / 50.)*50.
-max_dist = dim_max_n(dists, 1)
+dists := toint(dists / 5.)*5.
 
-wkst = "x11"
-wkst@wkPause = False
-wks = gsn_open_wks(wkst,"error_histogram")
+
 
 res = True
-res@trYMinF = 85
+res@trYMinF = 0
 res@trYMaxF = 101
 
 opt :=True
 opt@bin_nice = True
 opt@bin_bound_min = 0
-pdf1 := pdfx(dists, 26, opt) 
+pdf1 := pdfx(dists, 101, opt) 
 plot = gsn_csm_xy(wks, pdf1@bin_center, dim_cumsum(pdf1,0), res)
 
+print(max(dists))
 
-;inf2 = addfile("~/Desktop/research/noaa_postdoc/cfsr_ibtracs_v03r08.nc","r")
-;slon2 = inf2->storm_lon
-;slat2 = inf2->storm_lat
-;dists2 = gc_latlon(in_lat, in_lon,  slat2, slon2, 0, 4)
-;dists2@_FillValue = default_fillvalue(typeof(dists2))
-;dists2 = where(ismissing(in_lat),dists2@_FillValue, dists2)
-;dists2 = where(ismissing(slat2),dists2@_FillValue, dists2)
-;dists2 := toint(dists2 / 100.)*100.
-;
-;
-;pdf2 = pdfx(dists2, 26, opt) 
-;plot = gsn_csm_xy(wks, pdf2@bin_center, dim_cumsum(pdf2,0), res)
-;
-;
-;dists3 = gc_latlon(slat, slon,  slat2, slon2, 0, 4)
-;dists3@_FillValue = default_fillvalue(typeof(dists3))
-;dists3 = where(ismissing(slat),dists3@_FillValue, dists3)
-;dists3 = where(ismissing(slat2),dists3@_FillValue, dists3)
-;dists3 := toint(dists3 / 100.)*100.
-;
-;
-;pdf3 := pdfx(dists3, 26, opt) 
-;plot = gsn_csm_xy(wks, pdf3@bin_center, dim_cumsum(pdf3,0), res)
+inf2 = addfile("~/Desktop/research/noaa_postdoc/cfsr_ibtracs_v03r09.nc","r")
+slon2 = inf2->storm_lon
+slat2 = inf2->storm_lat
+dists2 = gc_latlon(in_lat, in_lon,  slat2, slon2, 0, 4)
+dists2@_FillValue = default_fillvalue(typeof(dists2))
+dists2 = where(ismissing(in_lat),dists2@_FillValue, dists2)
+dists2 = where(ismissing(slat2),dists2@_FillValue, dists2)
+dists2 := toint(dists2 / 100.)*100.
+
+
+pdf2 = pdfx(dists2, 26, opt) 
+plot = gsn_csm_xy(wks, pdf2@bin_center, dim_cumsum(pdf2,0), res)
+
+
+dists3 = gc_latlon(slat, slon,  slat2, slon2, 0, 4)
+dists3@_FillValue = default_fillvalue(typeof(dists3))
+dists3 = where(ismissing(slat),dists3@_FillValue, dists3)
+dists3 = where(ismissing(slat2),dists3@_FillValue, dists3)
+dists3 := toint(dists3 / 100.)*100.
+
+
+pdf3 := pdfx(dists3, 26, opt) 
+plot = gsn_csm_xy(wks, pdf3@bin_center, dim_cumsum(pdf3,0), res)
 
 
 load "lib/check_location.ncl"
-max_sort = dim_pqsort(max_dist, -1)
-s_ind = max_sort(2)
-do t=0,45,2
-if( toint(slat&time(t))%6 .eq.0) .and. ( .not. ismissing(in_lat(s_ind, t)) .and. .not.ismissing(slat(s_ind,t)))
+s_ind = 1712
+do t=29,45,2
 print(cd_string(stime(s_ind, t),"%Y%N%D %H%M"))
 check_location(wks, stime(s_ind,t),(/in_lat(s_ind,t),in_lon(s_ind, t)/), (/slat(s_ind,t), slon(s_ind,t)/) )
-end if
 end do
 
 

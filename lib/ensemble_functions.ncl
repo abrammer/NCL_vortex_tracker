@@ -11,6 +11,7 @@ do ii=0,nc-2
   nmin := local_min_1d(md, False, 0.,1)
   if( all(.not.ismissing(nmin)) .and. any(md(nmin).lt.0.5) )
     nmin := nmin(minind(md(nmin)))
+    print(""+nmin)
     if( (nmin .lt. nc/5) )
       cone(0,ii:(ii+nmin)) = cone@_FillValue
       nmi := ind(.not.ismissing(cone(0,:)))
@@ -122,21 +123,12 @@ cone = new( (/2, 1001/), float)
 
 nens = get_res_value_keep(tcdata, "nens", 21)
 
-; nmi := ind(dim_num_n(.not.ismissing(tcdata(0,:,:)),0) .gt. nens/10. ) 
  mean_locs:=dim_avg_n_Wrap(tcdata(:,:,:),1)
- wgt := gc_latlon(mean_locs(0,{72}),mean_locs(1,{72}), tcdata(0,:,{72}),tcdata(1,:,{72}),0,4) > 25.
- wgt@_FillValue = default_fillvalue(typeof(wgt))
- wgt = where(ismissing(tcdata(1,:,{72})), wgt@_FillValue, wgt)
- ti = ind_nearest_coord(72, mean_locs&time, 0)
- do t=ti+1, dimsizes(mean_locs&time)-1
-   mean_locs(:,t) = dim_avg_wgt_n(tcdata(:,:,t), 1/wgt, nens/6, 1)
- end do
-; mean_locs_hr = linint1_n_Wrap(mean_locs&time, mean_locs, False, fspan(min(mean_locs&time), max(mean_locs&time), 100), 0, 1)
  mean_locs = runave_n(mean_locs, 4, 1, 1)
-; mean_locs = (/ mean_locs_hr(:,{mean_locs&time}) /)
- 
+ mean_locs!1 = "time"
+
  nmi = max(ind(.not.ismissing(mean_locs(0,:))))
- maxhr = totype(min( (/rmaxhr, mean_locs&time(nmi)/) ), typeof(rmaxhr) )
+ maxhr = totype(min( (/rmaxhr, mean_locs&time(nmi)-1/) ), typeof(rmaxhr) )
  mean_lat := mean_locs(0,{:maxhr})
  mean_lon := mean_locs(1,{:maxhr})
 
@@ -145,18 +137,18 @@ nens = get_res_value_keep(tcdata, "nens", 21)
 if(dimsizes(mean_lat&time).lt.2) return cone end if 
  mean_track := track_dir_dist(mean_lat({:maxhr}), mean_lon({:maxhr}))
  errors := along_across_error(mean_lat, mean_lon, tcdata(0,:,{mean_lat&time}), tcdata(1,:,{mean_lat&time}))
- ens_spread := dim_stddev_n(errors(1,:,:),0)
+ ens_spread := dim_max_n(dim_stddev_n(errors(:,:,:),1),0)
  do t=0, dimsizes(ens_spread)-1
-  ens_spread(t) = dim_max(ens_spread(:t))
+  ens_spread(t) = dim_max(ens_spread(:t)) > 50.
  end do
- ens_spread = tofloat( ens_spread  + (mean_lon&time) ) > 50.
+ ;ens_spread = tofloat( ens_spread  + (mean_lon&time) ) > 50.
 
  lcone := new( (/2,dimsizes(ens_spread)/), float)
  rcone := new((/2,dimsizes(ens_spread)/), float)
  do t=0, dimsizes(ens_spread)-1
   if(.not. ismissing(mean_lat(t)) .and. .not. ismissing(mean_track(0,t)) )
-     lcone(:,t) = advect_by_km_radians(mean_lat(t), mean_lon(t), ens_spread(t), mean_track(0,t)-1.57)
-     rcone(:,t) = advect_by_km_radians(mean_lat(t), mean_lon(t), ens_spread(t), mean_track(0,t)+1.57)
+     lcone(:,t) = advect_by_km_radians(mean_lat(t), mean_lon(t), ens_spread(t), mean_track(0,t)-(pi/2.))
+     rcone(:,t) = advect_by_km_radians(mean_lat(t), mean_lon(t), ens_spread(t), mean_track(0,t)+(pi/2.))
    end if
  end do
 ;print(mean_track(0,:))
@@ -189,7 +181,6 @@ coned :=    remove_loops(cone)
 npts = dimsizes(coned(0,:))
 cone(0,:) = runave( linint1(fspan(0,100, npts), coned(0,:), True, fspan(0,100,1001), 0), 40, -1)
 cone(1,:) = runave( linint1(fspan(0,100, npts), coned(1,:), True, fspan(0,100,1001), 0), 40, -1)
-
 
 return cone
 end 

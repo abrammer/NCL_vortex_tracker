@@ -30,8 +30,11 @@ if(var.eq."uv")
   return(varin)
 end if
 if(var.eq."cv")
+    print("calculating CV")
      u = grab_data(time_in, "u", opt)
      v = grab_data(time_in, "v", opt)
+     pvs(u)
+     pvs(v)
      varin = uv2cvF_Wrap(u,v)
      return(varin)
 end if
@@ -46,30 +49,66 @@ if(var.eq."mslp")
     return(varin)
 end if
 
-file_dir = "/erai/"
-file_suff = ".nc"
-cdtime = cd_calendar(time, 0)
-years = get_unique_values(cdtime(:,0))
-ff = addfiles(file_dir+years+"/"+var+"."+years+file_suff, "r")
+gribNames = (/"U", "V", "SLP","QV","H", "PS","T"/)
+vars      = (/"u", "v", "mslp","q", "g", "p_sfc","t"/)
+v_ind = ind(var.eq.vars)
+if(ismissing(v_ind))
+    print("Variable not found, try --")
+    print(vars)
+end if
+var_ = gribNames(v_ind)
+
+
+file_dir = "https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I6NPANA.5.12.4"
+streams = (/100, 200, 300, 400/)
+stream_starts = (/ \t
+    cd_inv_calendar(1979,01,01,00,00,00,time@units,0),   \
+    cd_inv_calendar(1992,01,01,00,00,00,time@units,0),   \
+    cd_inv_calendar(2002,01,01,00,00,00,time@units,0),   \
+    cd_inv_calendar(2011,01,01,00,00,00,time@units,0) /)
+stream_ends = (/ \
+    cd_inv_calendar(1992,01,01,00,00,00,time@units,0),   \
+    cd_inv_calendar(2002,01,01,00,00,00,time@units,0),   \
+    cd_inv_calendar(2011,01,01,00,00,00,time@units,0),   \
+    cd_inv_calendar(2020,01,01,00,00,00,time@units,0) /) \
+     -6
+
+s_ind = ind( time .ge. stream_starts .and. time.le.stream_ends )    
+if(ismissing(s_ind))
+  print("Stream not found -- is it 2020?")
+  print("update the script to support stream 500")
+end if
+stream = streams(s_ind)    
+fname = cd_string(time, "/%Y/%N/MERRA2_"+stream+".inst6_3d_ana_Np.%Y%N%D.nc4")
+
+url = file_dir+fname
+ff = addfile(file_dir+fname, "r")
+;print(ff)
 
 nt = dimsizes(time)-1
 
-dims = getfilevardims(ff[0],var)
+
+time = cd_convert(time, ff->time@units)
+
+dims = getfilevardims(ff,var_)
 if(any(dims.eq."lev"))
    if(isatt(opt, "levs"))
         if(isatt(opt,"levSelection") .and.(opt@levSelection .eq. "Range" ))
-           varin = ff[:]->$var$({time}, {opt@levs(0):opt@levs(1)}, :, :)
+           varin = ff->$var_$({time}, {opt@levs(0):opt@levs(1)}, :, :)
         else
-           varin = ff[:]->$var$({time}, {opt@levs}, :, :)
+           varin = ff->$var_$({time}, {opt@levs}, :, :)
         end if
  else
-   varin = ff[:]->$var$({time}, :, :, :)
+   varin = ff->$var_$({time}, :, :, :)
  end if
 else
-varin = ff[:]->$var$({time}, :, :)
+ varin = ff->$var_$({time}, :, :)
 end if
 
-varin = lonFlip(varin)
+varin&lat := tofloat( varin&lat)
+varin&lat@units = "degrees_north"
+varin&lon := tofloat( varin&lon)
+varin&lon@units = "degrees_east"
 
 ndims = dimsizes(dimsizes(varin))
 if(dimsizes(time).gt.1)

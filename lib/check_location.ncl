@@ -1,23 +1,34 @@
-undef("df")
-procedure df(wks, plot)
-begin
-draw(plot)
-frame(wks)
-end 
+
+;undef("df")
+;procedure df(wks, plot)
+;begin
+; draw(plot)
+; frame(wks)
+;end 
 ;check_location(wks, in_time, (/in_lat, in_lon/), sub_scale)
 
 undef("check_location")
-procedure check_location(wks, in_time, obs, locs)
-local obs, model, time, res,gres, pres, vr_res, ores, mres, ares, map, plot, glot, mslp,vr850
+procedure check_location(wks, in_time, obs, inlocs)
+local obs, model, time, map, res,gres, pres, vr_res, ores, mres, ares, map, plot, glot, mslp,vr850, inlocs, locs
 begin
 
+locs := inlocs
 
-res = True
+if(all(ismissing(inlocs)) .and. .not. all(ismissing(obs))) 
+locs :=  (/ obs /)
+end if
+if(all(ismissing(locs)) .and.  all(ismissing(obs))) 
+return
+end if
+
+res := True
 res@gsnMaximize = True
 res@gsnDraw = False
 res@gsnFrame = False
 res@gsnMaximize = True
 res@vpWidthF = 0.6
+
+
 ;res@cnLinesOn = True
 pres = True
 pres@gsnDraw = False
@@ -51,10 +62,11 @@ gres@cnLineLabelBackgroundColor = -1
 gres@gsnAddCyclic = False
 gres@gsnRightString = ""
 gres@gsnLeftString = ""
-gres@cnMinLevelValF = 0
-gres@cnMaxLevelValF = 30
-gres@cnLevelSpacingF = 5
-gres@cnLevelSelectionMode = "ManualLevels"
+;gres@cnMinLevelValF = 0
+;gres@cnMaxLevelValF = 30
+gres@cnLevelSpacingF = 15
+;gres@cnLevelSelectionMode = "ManualLevels"
+gres@gsnAddCyclic = True
 
 vr_res = True
 
@@ -76,7 +88,15 @@ vr_res@cnInfoLabelOn = False
 vr_res@gsnRightString = ""
 vr_res@gsnLeftString = ""
 
-
+vc_res := True
+vc_res@vcGlyphStyle = "WindBarb"
+vc_res@gsnFrame = False
+vc_res@gsnDraw = False
+vc_res@vcRefMagnitudeF = 5.0 
+vc_res@vcRefLengthF = 0.0175
+vc_res@vcRefAnnoOn = False
+vc_res@gsnRightString = ""
+vc_res@gsnLeftString = ""
 
 ores = True
 ores@gsMarkerIndex = 16
@@ -90,34 +110,58 @@ ares = True
 ares@gsMarkerIndex = 0
 ares@txFontHeightF = 0.012
 
-mslp  =grab_data(in_time, "pmsl", False)
-mslp = mslp/100.
 opt = True
-opt@levs = 700
-;g850  =grab_data(in_time, "cv", opt)
+opt@fhr = get_res_value_keep(in_time, "fhr", 0)
+mslp  =grab_data(in_time, "mslp", opt)
+mslp = mslp/100.
+
 opt@levs = 850
 vr850  =grab_data(in_time, "vr", opt)
+
+opt@levs = 925
+u925  =grab_data(in_time, "u", opt)
+v925  =grab_data(in_time, "v", opt)
+u925 = u925*1.914
+v925 =v925*1.914
+
+
 ;vr850 = circle_avg_m(vr850, 150.)
 
-dx = abs(obs(1) - locs(1)) > 5
-dy = abs(obs(0) - locs(0)) > 5
-dxy = max( (/dx, dy/) )
+opt@levs = 850
+g850 = grab_data(in_time, "g", opt)
+opt@levs = 200
+g200 = grab_data(in_time, "g", opt)
+g850 = g200 - g850
+
+if(abs(obs(1) - locs(1) ) .gt. 90)
+    if(obs(1) .lt. locs(1))
+        obs(1) = obs(1) + 360.
+    else
+        obs(1) = obs(1) - 360.
+    end if
+end if
+dx := abs(obs(1) - locs(1)) > 7.5
+dy := abs(obs(0) - locs(0)) > 7.5
+dxy := max( (/dx, dy/) )
 
 res@mpMinLatF = avg((/obs(0),locs(0)/))-dxy
 res@mpMaxLatF = avg((/obs(0),locs(0)/))+dxy
-
 res@mpMinLonF = avg((/obs(1),locs(1)/))-dxy
 res@mpMaxLonF = avg((/obs(1),locs(1)/))+dxy
+res@mpCenterLonF = avg( (/ res@mpMaxLonF, res@mpMinLonF /) )
 
+res@gsnRightString = cd_string(in_time, "%Y%N%D %H%M")
 map = gsn_csm_map(wks,res)
+
 vlot = gsn_csm_contour(wks, vr850, vr_res)
 plot = gsn_csm_contour(wks, mslp, pres)
-;glot = gsn_csm_contour(wks, g850({res@mpMinLatF:res@mpMaxLatF},{res@mpMinLonF:res@mpMaxLonF}), gres)
+glot = gsn_csm_contour(wks, g850({res@mpMinLatF:res@mpMaxLatF},:), gres)
+uvlot = gsn_csm_vector(wks,u925,v925, vc_res)
 
 overlay(map, vlot)
-
+overlay(map, uvlot)
 overlay(map, plot)
-;overlay(map, glot)
+overlay(map, glot)
 ;
 
 
@@ -181,6 +225,7 @@ gres@cnMinLevelValF = 0
 gres@cnMaxLevelValF = 30
 gres@cnLevelSpacingF = 5
 gres@cnLevelSelectionMode = "ManualLevels"
+gres@cnHighLabelsOn  = True
 
 vr_res = True
 
@@ -248,9 +293,9 @@ overlay(map, plot)
 
 ;map@obs = gsn_add_polymarker(wks, map, obs(1), obs(0), ores)
 map@mod1 = gsn_add_polymarker(wks, map, locs(1), locs(0), mres)
-;if(isatt(locs, "lat"))
-;map@mod2 = gsn_add_text(wks, map,tostring(ispan(1,dimsizes(locs@lat),1)), locs@lon, locs@lat, ares)
-;end if
+if(isatt(locs, "lat"))
+map@mod2 = gsn_add_text(wks, map,tostring(ispan(1,dimsizes(locs@lat),1)), locs@lon, locs@lat, ares)
+end if
 
 df(wks, map)
 

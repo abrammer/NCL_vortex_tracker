@@ -95,6 +95,58 @@ return(lon)
 end
 
 
+undef("make_lon_monotonic")
+function make_lon_monotonic(lon)
+local lon, dl, nl,isM,disc,diff
+begin
+
+dl = lon(1) - lon(0)
+nl = dimsizes(lon)
+
+isM = isMonotonic(lon)
+
+if(isM.ne.0)
+    return(lon)
+end if
+
+disc :=  ind( abs(lon(1:) - lon(:nl-2)) .gt. 2*dl ) 
+
+if(ismissing(disc))
+;    print("make_lon_monotonic Error: No discontiuity found.")
+;    print("Returned without adjustment")
+    return(lon)
+end if
+if(dimsizes(disc).gt.1)
+;    print("Can't Handle multiple discontinuities yet")
+;    print("Returned without adjustment")
+;    return(lon)
+    disc := disc(0)
+end if
+
+diff = lon(disc+1) - lon(disc)
+if(diff.lt.0) 
+    lon(disc+1:) = lon(disc+1:)+360
+else
+   lon(disc+1:) = lon(disc+1:)-360
+end if
+
+if(all(lon .gt. 360 ) )
+    lon = lon - 360
+end if
+if(all(lon .lt. -360 ) )
+    lon = lon + 360
+end if
+
+isM = isMonotonic(lon)
+if(isM.eq.0)
+  print("unravelling multiple discontinuities")
+   lon = make_lon_monotonic(lon)
+end if
+        
+return(lon)
+end
+
+
 undef("shift_grid")
 function shift_grid(data, pLat, pLon,dy, dx)
 local data, pLon, pLat, dy, dx, sub_locs, data_
@@ -872,7 +924,7 @@ begin
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
    g_opt := True
     copy_VarAtts(opt, g_opt)
-   g_opt@levs := (/200,850/)
+   g_opt@levs := (/250,850/)
    g_opt@levSelection := "Explicit"
    hgt := grab_data(in_time, "g", g_opt)
    hgtd := hgt(0,:,:) - hgt(1,:,:)
