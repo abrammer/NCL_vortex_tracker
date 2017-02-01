@@ -1,0 +1,5 @@
+# Vortex tracker in NCL
+
+Development version of a cyclone tracker using NCL to read and track variables. 
+
+files in /lib/ an be used as a stand alone tracker or to relocate ibtracs data. 
