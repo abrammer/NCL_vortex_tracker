@@ -1,4 +1,5 @@
 # Vortex tracker in NCL
+Occasional releases issued here:[![DOI](https://zenodo.org/badge/80573171.svg)](https://zenodo.org/badge/latestdoi/80573171)
 
 Development version of a cyclone tracker using NCL to read and track variables. 
 
