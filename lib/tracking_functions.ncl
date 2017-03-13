@@ -1,8 +1,18 @@
+vars = (/"cv",  "cv",   "cv",   "g",    "vr",    "vr"/)
+opts := (/ True, True,  True,    True,   True,     True/)
+levs = (/ 850,   700,   500,    850,    850,     700/)
+rkms = (/ 300.,     300,   300,    200,    200,     200/)
+minima =(/False, False, False, True,    False,  False/)
+
+
+
+
 undef("ab_debug")
 procedure ab_debug(var)
+local var
 begin
 if(isdefined("debug_") .and. debug_)
-  if( isstring(var) )
+  if( isstring(var) .or. islogical(var) )
     print((/var/))
   end if
   if( isnumeric(var) )
@@ -54,7 +64,7 @@ end
 
 undef("unwrap_lon")
 function unwrap_lon(lon, thresh)
-local lon, dl, nl,isM,disc,diff,nmi
+local lon,thresh, dl, nl,isM,disc,diff,nmi
 begin
 
 nl = dimsizes(lon)
@@ -725,13 +735,6 @@ undef("get_wave_positions")
 function get_wave_positions(in_time, in_lat, in_lon, options)
 local vars, opts, levs, minima, mins, mand_data, rkm, temp_min, opt,v,nmi
 begin
-
-vars = (/"cv",  "cv",   "cv",   "g",    "vr",    "vr"/)
-opts := (/ True, True,  True,    True,   True,     True/)
-levs = (/ 850,   700,   500,    850,    850,     700/)
-rkms = (/ 300.,     300,   300,    200,    200,     200/)
-minima =(/False, False, False, True,    False,  False/)
-
 dimz = dimsizes(in_lat)
 mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
 mand_data@_FillValue = default_fillvalue("float")
@@ -745,7 +748,6 @@ if(.not. all(ismissing(in_lat)))
     opt@rkm = get_res_value_keep(options, "rkm", rkms(v))
     data!0 = "lat"
     data!1 = "lon"
-    data := data({50:-20},:)
     data@min_rkm = get_res_value_keep(options, "min_rkm", 55)
     data@rkm = rkms(v)
     data = circle_avg_m(data,  data@rkm)
