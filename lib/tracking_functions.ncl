@@ -63,8 +63,10 @@ end
 
 
 undef("unwrap_lon")
+;;;;  Check for discontinuities in array greater than thresh
+;;;;  unwrap array so it's monotonic
 function unwrap_lon(lon, thresh)
-local lon,thresh, dl, nl,isM,disc,diff,nmi
+local lon, thresh, nl, nmi, d
 begin
 
 nl = dimsizes(lon)
@@ -88,8 +90,9 @@ return(lon)
 end
 
 undef("wrap_lon")
+;;;; Make sure lon is between -180 and 180 
 function wrap_lon(lon)
-local lon, dl, nl,isM,disc,diff,nmi
+local lon
 begin
 
 do while(any(lon.gt.180))
@@ -106,6 +109,8 @@ end
 
 
 undef("shift_grid")
+;;;; Return subset of grid that is shifted to be centered on
+;;;; pLat and pLon subsets of +- dy & dx
 function shift_grid(data, pLat, pLon,dy, dx)
 local data, pLon, pLat, dy, dx, sub_locs, data_
 begin
@@ -128,10 +133,9 @@ begin
     return sublocs
 end
 
-
-
-
 undef("unique_locations")
+;;;; Average locations that are within rkm of each other.
+;;;; n.b. Possibly not a great solution if rkm is too large
 function unique_locations(data,rkm)
 local dims, n, rpi, data, rkm, nmi, retdata
 begin
@@ -150,6 +154,8 @@ end do
 end
 
 undef("unique_locations_compare")
+;;;;  Given new locations in data1, delete any that are 
+;;;;   within rkm of locations in data. Return appended array
 function unique_locations_compare(data1, data,rkm)
 local dims, n, rpi, data, rkm, nmi, retdata, dataout, dataout_
 begin
@@ -190,6 +196,8 @@ end
 
 
 undef("loc_max_dist")
+;;;;  Find maxima that are within dist (km) of lat and lon inlocs[2] 
+;;;;  retval contain val and lat lon of maxima that match criteria
 function loc_max_dist(x, cyclic, dist, inlocs)
 local x, cyclic, dist, locs,\
  maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max,inlocs
@@ -234,6 +242,8 @@ begin
 end
 
 undef("loc_min_dist")
+;;;;  Find minima that are within dist (km) of lat and lon inlocs[2] 
+;;;;  retval contain val and lat lon of minima that match criteria
 function loc_min_dist(data, cyclic, dist, inlocs)
 local data, cyclic, dist, locs,\
  maxs, dimnames, mlons, mlats, dists, dist_ind, nmax, new_max,inlocs
@@ -280,6 +290,7 @@ end
 
 
 undef("loc_max")
+;;;; Find maxima above a threshold value return val, lat, lon
 function loc_max(x, cyclic, thres)
 local maxs, new_max, max_thres
 begin
@@ -301,6 +312,7 @@ begin
 end
 
 undef("loc_min")
+;;;; Find minima above a threshold value return val, lat, lon
 function loc_min(x, cyclic, thres)
 local mins, new_min, min_thres, dimnames
 begin
@@ -324,6 +336,7 @@ end
 
 
 undef("getlatlon_points")
+;;;; retrieve grid values at multiple lat,lon locations
 function getlatlon_points(grid, lat, lon)
 local retval, lat_i, lon_i, nmi
 begin
@@ -341,18 +354,21 @@ end
 
 
 undef("subgrid_location_km")
+;;;; Given a grid find the weighted maxima within the field
+;;;; use a weak barnes weighting filter 
 function subgrid_location_km(data[*][*]:float, lat[1]:numeric, lon[1]:numeric, minima[1]:logical, km[1]:numeric)
 local lati, loni, lap, lam, lop, lom, subgrid, lats, lons, alat, alon, aval, dists
 begin
 
 subgrid = data;(lam:lap, lom:lop) 
-if(minima)  subgrid = subgrid*-1  end if
-if(any(subgrid.lt.0)) subgrid = subgrid+abs(min(subgrid)) end if
+if(minima)  subgrid =  max(subgrid) - subgrid  end if
+subgrid = where(subgrid.lt.0, 0, subgrid)
 
 lats = conform(subgrid, subgrid&lat, 0)
 lons = conform(subgrid, subgrid&lon, 1)
 dists := gc_latlon(lat, lon, lats, lons, 0, 4)
-subgrid = where(dists .gt. (km > min(dists)), 0, subgrid^2)
+weights = exp( -1 * ((dists^2)/km^2))   ;; generous barnes like weighting function
+subgrid = subgrid^2 * weights
 
 alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
 alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
