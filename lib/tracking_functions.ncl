@@ -529,6 +529,95 @@ else
 end if
 end
 
+
+undef("advect_location")
+function advect_location(mand_data, ups, vps, dt)
+local dims, ndims, new_data, lons, mand_data
+begin
+dims = dimsizes(mand_data)
+ndims = dimsizes(dims)
+
+new_data = mand_data
+if( ndims .eq. 1)
+  new_data(0) = new_data(0) + ((vps*dt) /111120.)
+  new_data(1) = new_data(1)  + ((ups*dt) /111120.)*cos(torad(new_data(0) ))
+else
+  new_data(:,0) = new_data(:,0) + ((vps*dt) /111120.)
+  new_data(:,1) = new_data(:,1)  + ((ups*dt) /111120.)*cos(torad(new_data(:,0) ))
+end if
+
+return( new_data )
+end
+
+
+
+
+undef("nudge_lons")
+function nudge_lons( lons, obs_lon )
+begin
+    if( obs_lon - lons(0) .lt. -90 )
+        obs_lon =obs_lon+360.
+    end if
+    if( obs_lon - lons(0) .gt. 90 )
+        obs_lon =obs_lon-360.
+    end if
+lons(1:) = lons(1:) + (obs_lon - lons(0))/2.
+return wrap_lon(lons)
+end 
+
+
+
+undef("nudge_lats")
+function nudge_lats( lats, obs_lat )
+begin
+lats(1:) = lats(1:) + (obs_lat - lats(0))/2.
+return (lats)
+end 
+
+
+
+undef("filter_tracks")
+procedure filter_tracks(track_locs,t)
+local n_miss, n_track, kill
+begin
+    ;; optional procedure to kill tracks that are too weak to track \
+    ;; filters based on number of missing vorticity values within last 8 track positions
+    ;; if track is longer than 4 times and 50% are missing get rid of it
+  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
+  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
+  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
+  if(.not.all(ismissing(kill)))
+   print("kill kill")
+   track_locs(kill,:,t) =  track_locs@_FillValue
+  end if
+end
+
+
+undef("advect_tracks")
+function advect_tracks(time, track_loc)
+local nmi, rkm,time,track_loc, steering, uwnd, vwnd, wave_ups, wave_vps
+begin
+  nmi := ind(.not.ismissing(track_loc(:,0)))
+  retvals = new( dimsizes(track_loc(:,:1)), float)
+  if(all(ismissing(nmi)))  return   end if
+  dt = get_res_value_keep(time, "dt", 6)
+  rkm = 350
+  steering := True
+  copy_VarAtts(time, steering)
+  steering@levs := (/800, 300/)
+  steering@levSelection = "Range"
+  uwnd := dim_avg_n_Wrap(grab_data(time, "u", steering),0)
+  vwnd := dim_avg_n_Wrap(grab_data(time, "v", steering),0)
+  wave_ups := circle_avg_m_point(uwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
+  wave_vps := circle_avg_m_point(vwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
+  retvals(nmi,:) = advect_location(track_loc(nmi,:1), wave_ups, wave_vps, 60.*60.*dt)
+ return(  retvals  )
+end
+
+
+
+
+
 undef("get_mand_positions")
 ;;;;;;;;;;;;; Get 6 center locations using same variables as Marchok GFDL
 ;;;;;;;;        ;; 925 used instead of 10m. 
@@ -974,89 +1063,4 @@ end
 ;
 ;return(aux_data)
 ;end 
-
-undef("advect_location")
-function advect_location(mand_data, ups, vps, dt)
-local dims, ndims, new_data, lons, mand_data
-begin
-dims = dimsizes(mand_data)
-ndims = dimsizes(dims)
-
-new_data = mand_data
-if( ndims .eq. 1)
-  new_data(0) = new_data(0) + ((vps*dt) /111120.)
-  new_data(1) = new_data(1)  + ((ups*dt) /111120.)*cos(torad(new_data(0) ))
-else
-  new_data(:,0) = new_data(:,0) + ((vps*dt) /111120.)
-  new_data(:,1) = new_data(:,1)  + ((ups*dt) /111120.)*cos(torad(new_data(:,0) ))
-end if
-
-return( new_data )
-end
-
-
-
-
-undef("nudge_lons")
-function nudge_lons( lons, obs_lon )
-begin
-    if( obs_lon - lons(0) .lt. -90 )
-        obs_lon =obs_lon+360.
-    end if
-    if( obs_lon - lons(0) .gt. 90 )
-        obs_lon =obs_lon-360.
-    end if
-lons(1:) = lons(1:) + (obs_lon - lons(0))/2.
-return wrap_lon(lons)
-end 
-
-
-
-undef("nudge_lats")
-function nudge_lats( lats, obs_lat )
-begin
-lats(1:) = lats(1:) + (obs_lat - lats(0))/2.
-return (lats)
-end 
-
-
-
-undef("filter_tracks")
-procedure filter_tracks(track_locs,t)
-local n_miss, n_track, kill
-begin
-    ;; optional procedure to kill tracks that are too weak to track \
-    ;; filters based on number of missing vorticity values within last 8 track positions
-    ;; if track is longer than 4 times and 50% are missing get rid of it
-  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
-  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
-  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
-  if(.not.all(ismissing(kill)))
-   print("kill kill")
-   track_locs(kill,:,t) =  track_locs@_FillValue
-  end if
-end
-
-
-undef("advect_tracks")
-function advect_tracks(time, track_loc)
-local nmi, rkm,time,track_loc, steering, uwnd, vwnd, wave_ups, wave_vps
-begin
-  nmi := ind(.not.ismissing(track_loc(:,0)))
-  retvals = new( dimsizes(track_loc(:,:1)), float)
-  if(all(ismissing(nmi)))  return   end if
-  dt = get_res_value_keep(time, "dt", 6)
-  rkm = 350
-  steering := True
-  copy_VarAtts(time, steering)
-  steering@levs := (/800, 300/)
-  steering@levSelection = "Range"
-  uwnd := dim_avg_n_Wrap(grab_data(time, "u", steering),0)
-  vwnd := dim_avg_n_Wrap(grab_data(time, "v", steering),0)
-  wave_ups := circle_avg_m_point(uwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
-  wave_vps := circle_avg_m_point(vwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
-  retvals(nmi,:) = advect_location(track_loc(nmi,:1), wave_ups, wave_vps, 60.*60.*dt)
- return(  retvals  )
-end
-
 
