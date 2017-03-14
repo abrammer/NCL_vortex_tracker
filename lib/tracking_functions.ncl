@@ -416,6 +416,8 @@ end
  
  
 undef("get_mass_center")
+;;;; iterate over subgrid_location_km to hone in on center
+;;;; n.b. probably iterates more than needed but it's quick.
 function get_mass_center(data, locs)
 local minima, rkm,dimz, rankz, retval, pLat, pLon, dx, sublocs, lats, lons, val1d, dist
 begin
@@ -444,7 +446,7 @@ else
   end if
     
   ;;;;;   shift grid so we're not at the edge of a domain
-  dx = 10;
+  dx = ceil(rkm/111.)+4;
   sublocs := shift_grid(data, pLat, pLon,dx, dx)
 
   ;;;;;   Find mass center over large area first
@@ -490,6 +492,8 @@ end
 
 
 undef("is_minima")
+;;;; header for get_mass_center
+;;;; finds nearest min then starts the search.
 function is_minima(data, in_lat,in_lon, dist)
 local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret,data, lat, lon
 begin
@@ -514,6 +518,8 @@ return False
 end
 
 undef("is_maxima")
+;;;; header for get_mass_center
+;;;; finds nearest max then starts the search.
 function is_maxima(data, in_lat,in_lon, dist)
 local var_sub, loc_max, lmi, locs, min_lat, ret, mslp, lat, lon, dist,retval
 begin
@@ -557,6 +563,9 @@ end
 
 
 undef("advect_location")
+;;;; Given a vector ups, vps move the inital point
+;;;; dt delta time in seconds  
+;;;; ups / vps in m/s
 function advect_location(mand_data, ups, vps, dt)
 local dims, ndims, new_data, lons, mand_data
 begin
@@ -577,49 +586,8 @@ end
 
 
 
-
-undef("nudge_lons")
-function nudge_lons( lons, obs_lon )
-begin
-    if( obs_lon - lons(0) .lt. -90 )
-        obs_lon =obs_lon+360.
-    end if
-    if( obs_lon - lons(0) .gt. 90 )
-        obs_lon =obs_lon-360.
-    end if
-lons(1:) = lons(1:) + (obs_lon - lons(0))/2.
-return wrap_lon(lons)
-end 
-
-
-
-undef("nudge_lats")
-function nudge_lats( lats, obs_lat )
-begin
-lats(1:) = lats(1:) + (obs_lat - lats(0))/2.
-return (lats)
-end 
-
-
-
-undef("filter_tracks")
-procedure filter_tracks(track_locs,t)
-local n_miss, n_track, kill
-begin
-    ;; optional procedure to kill tracks that are too weak to track \
-    ;; filters based on number of missing vorticity values within last 8 track positions
-    ;; if track is longer than 4 times and 50% are missing get rid of it
-  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
-  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
-  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
-  if(.not.all(ismissing(kill)))
-   print("kill kill")
-   track_locs(kill,:,t) =  track_locs@_FillValue
-  end if
-end
-
-
 undef("advect_tracks")
+;;;; use dumb layer average flow to guess at advection of system
 function advect_tracks(time, track_loc)
 local nmi, rkm,time,track_loc, steering, uwnd, vwnd, wave_ups, wave_vps
 begin
@@ -641,12 +609,197 @@ begin
 end
 
 
+undef("nudge_lons")
+function nudge_lons( lons, obs_lon )
+begin
+    if( obs_lon - lons(0) .lt. -90 )
+        obs_lon =obs_lon+360.
+    end if
+    if( obs_lon - lons(0) .gt. 90 )
+        obs_lon =obs_lon-360.
+    end if
+lons(1:) = lons(1:) + (obs_lon - lons(0))/2.
+return wrap_lon(lons)
+end 
+
+
+undef("nudge_lats")
+function nudge_lats( lats, obs_lat )
+begin
+lats(1:) = lats(1:) + (obs_lat - lats(0))/2.
+return (lats)
+end 
+
+
+
+undef("filter_tracks")
+;; optional procedure to kill tracks that are too weak to track \
+;; filters based on number of missing vorticity values within last 8 track positions
+;; if track is longer than 4 times and 50% are missing get rid of it
+procedure filter_tracks(track_locs,t)
+local n_miss, n_track, kill
+begin
+  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
+  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
+  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
+  if(.not.all(ismissing(kill)))
+   print("kill kill")
+   track_locs(kill,:,t) =  track_locs@_FillValue
+  end if
+end
+
+
+
+
+
+undef("combine_multi_positions")
+;;;;  Search multi positions for centers within 350km of each other
+;;;; 
+function combine_multi_positions(mand_data)
+local mand_data, z_score, avg_loc, rankz, dimz, retval
+begin
+dimz = dimsizes(mand_data)
+rankz = dimsizes(dimz)
+ab_debug(" ---- combine_wave_positions   ----")
+if(rankz.eq.3)
+	retval = new( (/dimz(0), 2/), float)
+	do r=0, dimz(0)-1
+		retval(r,:) = combine_multi_positions( mand_data(r,:,:) )
+	end do
+	return retval
+else
+	;;;;  Need at least 2 centers to start with
+	if( num(.not.ismissing(mand_data(0,:))).lt.2 ) 
+		ab_debug("Less than 2 center fixes found")
+		return( (/mand_data@_FillValue, mand_data@_FillValue/) )
+	 end if 
+	 ;; fix dateline issue.
+	 mand_data(1,:) = unwrap_lon(mand_data(1,:), 50.) 
+	 ;;  initially search within median location. Well defined system should be close together
+	 zinds := ind( gc_latlon(dim_median(mand_data(0,:)), dim_median(mand_data(1,:)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+	 if(all(ismissing(zinds)))
+		;; else search within radius of primary variable
+		ab_debug("No centers within 350 km")
+		zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+	 end if 
+	 ;;;;;  Require at least 2 centers to be found. 
+	 if(dimsizes(zinds).lt.2)
+			ab_debug("Only 1 center within 350 km")
+		 return( (/mand_data@_FillValue, mand_data@_FillValue/) )
+	 end if 
+	 avg_loc = dim_avg_n( mand_data(:1,zinds),1)
+	 return(avg_loc)
+end if
+end 
+
+
+
+undef("get_multi_positions")
+;;;;;;;; Get extra 6 center locations using the vars and opts defined globally
+;;;;;;;;      
+;;;;;;;; 
+;;;;;;;; 
+function get_multi_positions(in_time, in_lat, in_lon, options)
+local   mins, mand_data, rkm, temp_min, opt,v,nmi
+begin
+dimz = dimsizes(in_lat)
+mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
+mand_data@_FillValue = default_fillvalue("float")
+
+if(.not. all(ismissing(in_lat)))
+  do v=0, dimsizes(vars)-1
+    opt := opts(v)
+    copy_VarAtts(options, opt)
+    opt@levs := levs(v)
+    data := grab_data(in_time, vars(v), opt)  ;; read in global grid from file
+    opt@rkm = get_res_value_keep(options, "rkm", rkms(v))
+    data!0 = "lat"
+    data!1 = "lon"
+    data@min_rkm = get_res_value_keep(options, "min_rkm", 55)
+    data@rkm = rkms(v)
+    data = circle_avg_m(data,  data@rkm)
+    do l=0, dimsizes(in_lat)-1
+      if(.not. ( ismissing(in_lat(l)) .and. ismissing(in_lon(l))) )
+        if(minima(v))
+          temp_min := is_minima(data, in_lat(l), in_lon(l), opt@rkm) 
+        else
+          temp_min := is_maxima(data, in_lat(l), in_lon(l), opt@rkm)
+        end if
+        mand_data(l,0,v)  = get_res_value(temp_min, "lat", mand_data@_FillValue)
+        mand_data(l,1,v)  = get_res_value(temp_min, "lon", mand_data@_FillValue)
+        mand_data(l,2,v)  = get_res_value(temp_min, "val", mand_data@_FillValue)  
+      end if
+    end do
+  end do
+end if
+
+mand_data!0 = "systems"
+mand_data!1= "data"
+mand_data!2= "variables"
+mand_data&data = (/"lat","lon","val"/)
+mand_data&variables = vars
+
+retval = mand_data(:,:,0)
+retval = retval@_FillValue
+
+retval(:,:1) = (/ combine_multi_positions(mand_data) /)
+nmi = ind(.not.ismissing(retval(:,0)) .and. .not.ismissing(mand_data(:,2,4)) )
+if(.not.all(ismissing(nmi)))
+  retval(nmi,2) = (/ mand_data(nmi,2,4) /)
+end if
+retval(:,1) = where(retval(:,1).gt.180, retval(:,1)-360., retval(:,1) ) 
+
+return (retval)
+end 
+
+
+
+
+
+
+
+undef("get_starting_targets")
+function get_starting_targets(time, lat_bds[2], lon_bds[2], opt)
+local min_thresh, cv, uwnd, vwnd, maxes, maxes_mass, easterly, tmp_wave_locs, retval
+begin
+rkm = get_res_value_keep(opt, "rkm",300)
+min_thresh = get_res_value_keep(opt, "min_threshold", 0.1e-5)
+
+cv := grab_data(time, "cv", opt)
+cv = circle_avg_m(cv, rkm*1.5)
+
+maxes := loc_max(cv({lat_bds(0):lat_bds(1)},{lon_bds(0):lon_bds(1)}), True, min_thresh)
+if(maxes .eq. 0)
+  maxes_mass := new( (/1, 3/), float)
+  return maxes_mass
+end if
+
+maxes_mass := new( (/maxes, 3/), float)
+do m=0, maxes-1
+	maxes_mass(m,:) =  get_mass_center(cv, (/maxes@lat(m), maxes@lon(m)/) )
+end do
+
+;;;;;;;;;;  Remove duplicate locations
+maxes_mass := unique_locations(maxes_mass, rkm)
+keep_inds = ind(.not.ismissing(maxes_mass(:,0)))
+if(dimsizes(keep_inds).eq.1)
+ retval := new( (/1,3/), float)
+ if(.not.all(ismissing(keep_inds)))
+   retval(0,:) = maxes_mass(keep_inds,:)
+ end if
+else
+ retval := maxes_mass(keep_inds,:)        
+end if
+
+return retval
+end
+
 
 
 
 undef("get_mand_positions")
-;;;;;;;;;;;;; Get 6 center locations using same variables as Marchok GFDL
-;;;;;;;;        ;; 925 used instead of 10m. 
+;;;;;;;; Defunct don't use this.  Load vars and opts at top, use generic version
+;;;;;;;;       
 ;;;;;;;; 
 ;;;;;;;; 
 function get_mand_positions(in_time, in_lat, in_lon, rkm)
@@ -704,168 +857,6 @@ return (mand_data)
 end 
 
 
-
-undef("combine_wave_positions")
-function combine_wave_positions(mand_data)
-local mand_data, z_score, avg_loc, rankz, dimz, retval
-begin
-dimz = dimsizes(mand_data)
-rankz = dimsizes(dimz)
-ab_debug(" ---- combine_wave_positions   ----")
-if(rankz.eq.3)
-  retval = new( (/dimz(0), 2/), float)
-  do r=0, dimz(0)-1
-;    print("   "+r)
-   retval(r,:) = combine_wave_positions( mand_data(r,:,:) )
-  end do
-  return retval
-else
-if( num(.not.ismissing(mand_data(0,(/0,1,2,4,5/)))).le.2 ) 
-    ab_debug("Less than 2 center fixes found")
-    return( (/mand_data@_FillValue, mand_data@_FillValue/) )
- end if 
- mand_data(1,:) = unwrap_lon(mand_data(1,:), 50.) ;; fix dateline issue.
- zinds := ind( gc_latlon(avg(mand_data(0,:)), avg(mand_data(1,:)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
-;print(zinds +"  ")
- if(all(ismissing(zinds)))
-       ab_debug("No centers within 350 km")
-   zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
- end if 
- if(dimsizes(zinds).le.2)
-        ab_debug("Only 1 center within 350 km")
-     return( (/mand_data@_FillValue, mand_data@_FillValue/) )
- end if 
- avg_loc = dim_avg_n( mand_data(:1,zinds),1)
- return(avg_loc)
-;  end if
-end if
-end 
-
-
-
-undef("get_wave_positions")
-;;;;;;;;;;;;; Get extra 6 center locations using same curv. vort and OW
-;;;;;;;;      
-;;;;;;;; 
-;;;;;;;; 
-function get_wave_positions(in_time, in_lat, in_lon, options)
-local vars, opts, levs, minima, mins, mand_data, rkm, temp_min, opt,v,nmi
-begin
-dimz = dimsizes(in_lat)
-mand_data = new( (/dimz(0), 3,dimsizes(vars)/), float)
-mand_data@_FillValue = default_fillvalue("float")
-
-if(.not. all(ismissing(in_lat)))
-  do v=0, dimsizes(vars)-1
-    opt := opts(v)
-    copy_VarAtts(options, opt)
-    opt@levs := levs(v)
-    data := grab_data(in_time, vars(v), opt)  ;; read in global grid from file
-    opt@rkm = get_res_value_keep(options, "rkm", rkms(v))
-    data!0 = "lat"
-    data!1 = "lon"
-    data@min_rkm = get_res_value_keep(options, "min_rkm", 55)
-    data@rkm = rkms(v)
-    data = circle_avg_m(data,  data@rkm)
-    do l=0, dimsizes(in_lat)-1
-      if(.not. ( ismissing(in_lat(l)) .and. ismissing(in_lon(l))) )
-        if(minima(v))
-          temp_min := is_minima(data, in_lat(l), in_lon(l), opt@rkm) 
-        else
-          temp_min := is_maxima(data, in_lat(l), in_lon(l), opt@rkm)
-        end if
-        mand_data(l,0,v)  = get_res_value(temp_min, "lat", mand_data@_FillValue)
-        mand_data(l,1,v)  = get_res_value(temp_min, "lon", mand_data@_FillValue)
-        mand_data(l,2,v)  = get_res_value(temp_min, "val", mand_data@_FillValue)  
-      end if
-;      if(ismissing(mand_data(l,1,v)))
-;      print("missing")
-;         check_centerfix(wks, data, (/in_lat, in_lon/) )
-;      else
-;         check_centerfix(wks, data, mand_data(l,:1,v))
-;      end if
-    end do
-  end do
-end if
-
-mand_data!0 = "systems"
-mand_data!1= "data"
-mand_data!2= "variables"
-mand_data&data = (/"lat","lon","val"/)
-mand_data&variables = vars
-
-
-retval = mand_data(:,:,0)
-retval = retval@_FillValue
-
-retval(:,:1) = (/ combine_wave_positions(mand_data) /)
-nmi = ind(.not.ismissing(retval(:,0)) .and. .not.ismissing(mand_data(:,2,4)) )
-if(.not.all(ismissing(nmi)))
-  retval(nmi,2) = (/ mand_data(nmi,2,4) /)
-end if
-retval(:,1) = where(retval(:,1).gt.180, retval(:,1)-360., retval(:,1) ) 
-
-return (retval)
-end 
-
-
-
-
-
-
-
-undef("get_starting_targets")
-function get_starting_targets(time, lat_bds[2], lon_bds[2], opt)
-local min_thresh, cv, uwnd, vwnd, maxes, maxes_mass, easterly, tmp_wave_locs, retval
-begin
-rkm = get_res_value_keep(opt, "rkm",300)
-min_thresh = get_res_value_keep(opt, "min_threshold", 0.1e-5)
-
-cv := grab_data(time, "cv", opt)
-cv = circle_avg_m(cv, rkm*1.5)
-
-maxes := loc_max(cv({lat_bds(0):lat_bds(1)},{lon_bds(0):lon_bds(1)}), True, min_thresh)
-if(maxes .eq. 0)
-  maxes_mass := new( (/1, 3/), float)
-  return maxes_mass
-end if
-
-maxes_mass := new( (/maxes, 3/), float)
-do m=0, maxes-1
- maxes_mass(m,:) =  get_mass_center(cv, (/maxes@lat(m), maxes@lon(m)/) )
-end do
-
-;;;;;;;;;;  Remove duplicate locations
-maxes_mass := unique_locations(maxes_mass, rkm)
-keep_inds = ind(.not.ismissing(maxes_mass(:,0)))
-if(dimsizes(keep_inds).eq.1)
- retval := new( (/1,3/), float)
- if(.not.all(ismissing(keep_inds)))
-   retval(0,:) = maxes_mass(keep_inds,:)
- end if
-else
- retval := maxes_mass(keep_inds,:)        
-end if
-
-;;;;;;;;;;;;;;;;;;;;;
-
-;maxes_uwnd := circle_avg_m_point(uwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
-;maxes_vwnd := circle_avg_m_point(vwnd, 500, maxes_mass(:,0), maxes_mass(:,1) )
-;easterly := ind(maxes_uwnd .lt. 1)     ;; easterly with a bit of wiggle room
-;maxes_mass := maxes_mass(easterly,:)
-;if(dimsizes(easterly).eq.1)
-; retval := new( (/1,3/), float)
-; retval(0,:) = maxes_mass
-; maxes_mass := retval
-;end if
-
-;;;;;;;;;;;;;   Recenter potential targets on combined wave location  ;;; too slow to do here. 
-;tmp_wave_locs := get_wave_positions(time, maxes_mass(:,0), maxes_mass(:,1), 600)
-;maxes_mass := combine_mand_positions( tmp_wave_locs )
-;maxes_mass := unique_locations(maxes_mass, 250.)
-
-return retval
-end
 
 
 ;undef("zScore")
