@@ -42,7 +42,7 @@ gres@gsnFrame = False
 ;gres@cnLevelSpacingF = 10.
 gres@cnLineColor = "Brown"
 gres@cnLineThicknessF =3.
-gres@cnLineLabelsOn = False
+gres@cnLineLabelsOn = True
 gres@cnInfoLabelOn = False
 ;gres@cnHighLabelsOn  = True
 ;gres@cnLowLabelsOn = True
@@ -51,10 +51,10 @@ gres@cnLineLabelBackgroundColor = -1
 gres@gsnAddCyclic = False
 gres@gsnRightString = ""
 gres@gsnLeftString = ""
-gres@cnMinLevelValF = 0
-gres@cnMaxLevelValF = 30
-gres@cnLevelSpacingF = 5
-gres@cnLevelSelectionMode = "ManualLevels"
+;gres@cnMinLevelValF = 0
+;gres@cnMaxLevelValF = 30
+;gres@cnLevelSpacingF = 5
+;gres@cnLevelSelectionMode = "ManualLevels"
 
 vr_res = True
 
@@ -65,17 +65,25 @@ vr_res@cnFillOn = True
 vr_res@cnFillMode = "RasterFill"
 vr_res@cnFillPalette = "sunshine_diff_20lev"
 vr_res@cnLevelSelectionMode = "ExplicitLevels"
-vr_res@cnLevels = (/ -75,-55,-35,-15,0,5,7.5,10,12.5,15,20,25,30,35,40,45,50,75,100,125,150/)*(10^-5)
+vr_res@cnLevels = (/ -75,-55,-35,-15,0,5,7.5,10,12.5,15,20,25,30,35,40,45,50,75,100,125,150/);*(10^-5)
 vr_res@cnLinesOn = False
 vr_res@cnRasterSmoothingOn = True
 vr_res@lbOrientation = "vertical"
 vr_res@pmLabelBarOrthogonalPosF = -0.15
-vr_res@lbLabelBarOn = False
+vr_res@lbLabelBarOn = True
 vr_res@cnLineLabelsOn = False
 vr_res@cnInfoLabelOn = False
 vr_res@gsnRightString = ""
 vr_res@gsnLeftString = ""
 
+vc_res = True
+vc_res@gsnRightString = ""
+vc_res@gsnLeftString = ""
+vc_res@gsnDraw = False
+vc_res@gsnFrame = False
+vc_res@vcGlyphStyle = "WindBarb"
+vc_res@vcRefLengthF = 0.012
+vc_res@vcRefMagnitudeF = 2.5
 
 
 ores = True
@@ -92,12 +100,26 @@ ares@txFontHeightF = 0.012
 
 mslp  =grab_data(in_time, "pmsl", False)
 mslp = mslp/100.
+
 opt = True
 opt@levs = 700
 ;g850  =grab_data(in_time, "cv", opt)
 opt@levs = 850
 vr850  =grab_data(in_time, "vr", opt)
+vr850 = vr850*10^5
 ;vr850 = circle_avg_m(vr850, 150.)
+
+opt@levs=1000
+usfc = grab_data(in_time, "u", opt)
+vsfc = grab_data(in_time, "v", opt)
+
+gopt = True
+gopt@levs = (/200,850/)
+gopt@levSelection = "Explicit"
+gdiff = grab_data(in_time, "g", gopt)
+
+gdiff(0,:,:) = gdiff(0,:,:) - gdiff(1,:,:)
+gdiff(0,:,:) = (/ gdiff(0,:,:) - circle_avg_m(gdiff(0,:,:) , 300.)/)
 
 dx = abs(obs(1) - locs(1)) > 5
 dy = abs(obs(0) - locs(0)) > 5
@@ -112,12 +134,13 @@ res@mpMaxLonF = avg((/obs(1),locs(1)/))+dxy
 map = gsn_csm_map(wks,res)
 vlot = gsn_csm_contour(wks, vr850, vr_res)
 plot = gsn_csm_contour(wks, mslp, pres)
-;glot = gsn_csm_contour(wks, g850({res@mpMinLatF:res@mpMaxLatF},{res@mpMinLonF:res@mpMaxLonF}), gres)
-
+glot = gsn_csm_contour(wks, gdiff(0,{res@mpMinLatF:res@mpMaxLatF},{res@mpMinLonF:res@mpMaxLonF}), gres)
+vecplot = gsn_csm_vector(wks, usfc, vsfc, vc_res)
 overlay(map, vlot)
 
 overlay(map, plot)
-;overlay(map, glot)
+overlay(map, vecplot)
+overlay(map, glot)
 ;
 
 
@@ -248,9 +271,9 @@ overlay(map, plot)
 
 ;map@obs = gsn_add_polymarker(wks, map, obs(1), obs(0), ores)
 map@mod1 = gsn_add_polymarker(wks, map, locs(1), locs(0), mres)
-;if(isatt(locs, "lat"))
-;map@mod2 = gsn_add_text(wks, map,tostring(ispan(1,dimsizes(locs@lat),1)), locs@lon, locs@lat, ares)
-;end if
+if(isatt(locs, "lat"))
+map@mod2 = gsn_add_text(wks, map,tostring(ispan(1,dimsizes(locs@lat),1)), locs@lon, locs@lat, ares)
+end if
 
 df(wks, map)
 
