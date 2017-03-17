@@ -120,7 +120,6 @@ undef("shift_grid")
 function shift_grid(data, pLat, pLon,dy, dx)
 local data, pLon, pLat, dy, dx, sub_locs, data_, dl
 begin
-    print(""+pLat+","+pLon)
   dl = data&lon(1) - data&lon(0)
   ;;;;;   shift grid so we're not at the edge of a domain
   if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
@@ -594,12 +593,13 @@ end
 
 undef("advect_tracks")
 ;;;; use dumb layer average flow to guess at advection of system
+;;;; If time gaps are not 6 hours attach dt to time variable.  Can be negative
 function advect_tracks(time, track_loc)
 local nmi, rkm,time,track_loc, steering, uwnd, vwnd, wave_ups, wave_vps
 begin
   nmi := ind(.not.ismissing(track_loc(:,0)))
   retvals = new( dimsizes(track_loc(:,:1)), float)
-  if(all(ismissing(nmi)))  return   end if
+  if(all(ismissing(nmi)))  return(retvals)   end if
   dt = get_res_value_keep(time, "dt", 6)
   rkm = 350
   steering := True
@@ -642,16 +642,30 @@ undef("filter_tracks")
 ;; optional procedure to kill tracks that are too weak to track \
 ;; filters based on number of missing vorticity values within last 8 track positions
 ;; if track is longer than 4 times and 50% are missing get rid of it
-procedure filter_tracks(track_locs,t)
+procedure filter_tracks(track_locs,t, opt)
 local n_miss, n_track, kill
 begin
-  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
-  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
-  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
-  if(.not.all(ismissing(kill)))
-   print("kill kill")
-   track_locs(kill,:,t) =  track_locs@_FillValue
+;  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
+;  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
+;  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
+;  if(.not.all(ismissing(kill)))
+;   print("kill kill")
+;   track_locs(kill,:,t) =  track_locs@_FillValue
+;  end if
+  
+    nmi := ind( \
+     ( dim_num_n(.not.ismissing(track_locs(:,0,t-8>0:t) ),1) .gt.6 )\ ;; if track lasted more than 6 times
+        .and.                                       \
+     (   \ ;; check the number of missing intensities or too weak intensities. 
+      dim_num_n( ismissing(track_locs(:,2,t-4>0:t)) .or. (track_locs(:,2,t-4>0:t) .lt. opt@min_threshold ),1) \
+      .ge. 3  )\
+      )
+  if(.not.all(ismissing(nmi)))
+;     print(dimsizes(nmi)+"   tracks too weak")
+      track_locs(nmi,:,t) = track_locs@_FillValue
   end if
+
+  
 end
 
 
