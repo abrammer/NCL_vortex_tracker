@@ -82,12 +82,18 @@ do d=0,dimsizes(nmi)-2
   end if
 end do
 
-if(any(lon.lt.0))
- lon = lon + 360
+if(all(lon .gt. 360 ) )
+    lon = lon - 360
+end if
+if(all(lon .lt. -360 ) )
+    lon = lon + 360
 end if
 
 return(lon)
 end
+
+
+
 
 undef("wrap_lon")
 ;;;; Make sure lon is between -180 and 180 
@@ -112,24 +118,24 @@ undef("shift_grid")
 ;;;; Return subset of grid that is shifted to be centered on
 ;;;; pLat and pLon subsets of +- dy & dx
 function shift_grid(data, pLat, pLon,dy, dx)
-local data, pLon, pLat, dy, dx, sub_locs, data_
+local data, pLon, pLat, dy, dx, sub_locs, data_, dl
 begin
-    
+    print(""+pLat+","+pLon)
+  dl = data&lon(1) - data&lon(0)
   ;;;;;   shift grid so we're not at the edge of a domain
   if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
       if( pLon-dx .lt. data&lon(0)  )
         data_ = lonPivot(data, pLon+180)
-        data_&lon = make_lon_monotonic(data_&lon)
+        data_&lon = unwrap_lon(data_&lon, dl)
         data_&lon = data_&lon - 360.
       else
         data_ = lonPivot(data, pLon-180)
-        data_&lon = make_lon_monotonic(data_&lon)
+        data_&lon = unwrap_lon(data_&lon, dl)
       end if
       sublocs := data_({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
   else
   sublocs := data({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
   end if
-
     return sublocs
 end
 
