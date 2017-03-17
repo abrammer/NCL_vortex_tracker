@@ -653,19 +653,29 @@ begin
 ;   track_locs(kill,:,t) =  track_locs@_FillValue
 ;  end if
   
-    nmi := ind( \
+    kill := ind( \
      ( dim_num_n(.not.ismissing(track_locs(:,0,t-8>0:t) ),1) .gt.6 )\ ;; if track lasted more than 6 times
         .and.                                       \
      (   \ ;; check the number of missing intensities or too weak intensities. 
       dim_num_n( ismissing(track_locs(:,2,t-4>0:t)) .or. (track_locs(:,2,t-4>0:t) .lt. opt@min_threshold ),1) \
       .ge. 3  )\
       )
-  if(.not.all(ismissing(nmi)))
+  if(.not.all(ismissing(kill)))
 ;     print(dimsizes(nmi)+"   tracks too weak")
-      track_locs(nmi,:,t) = track_locs@_FillValue
+      track_locs(kill,:,t) = track_locs@_FillValue
   end if
 
   
+  
+    keep := ind( \
+            (.not. ismissing(track_locs(:,0,t)))            \    ;; tracks that currently exist
+      .or.  (dim_num_n(.not.ismissing(track_locs(:,0,:)),1) .ge. 8 )  \   ;; must have lasted 2 days   
+            )   
+  ct := dimsizes(keep)
+  track_locs(:ct-1,:,:) = track_locs(keep,:,:)
+  track_locs(ct:,:,:) = track_locs@_FillValue
+  track_locs@ct = ct
+    
 end
 
 
