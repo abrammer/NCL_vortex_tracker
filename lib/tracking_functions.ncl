@@ -665,6 +665,10 @@ begin
       track_locs(kill,:,t) = track_locs@_FillValue
   end if
 
+    kill := ind( track_locs(:,0,t) .gt. 65 .or. track_locs(:,0,t) .lt. -65  ) ;; we don't need to follow deep into NH
+  if(.not.all(ismissing(kill)))
+      track_locs(kill,:,t) = track_locs@_FillValue
+  end if
   
   
     keep := ind( \
