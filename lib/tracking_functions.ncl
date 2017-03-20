@@ -1,11 +1,3 @@
-vars = (/"cv",  "cv",   "cv",   "g",    "vr",    "vr"/)
-opts := (/ True, True,  True,    True,   True,     True/)
-levs = (/ 850,   700,   500,    850,    850,     700/)
-rkms = (/ 300.,     300,   300,    200,    200,     200/)
-minima =(/False, False, False, True,    False,  False/)
-
-
-
 
 undef("ab_debug")
 procedure ab_debug(var)
