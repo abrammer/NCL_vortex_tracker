@@ -1,4 +1,4 @@
-load "~/NCL/functions/box_average/circle_avg.ncl"
+load "~/Desktop/research/track_cyclones/lib/circle_avg.ncl"
 load "~/Desktop/research/track_cyclones/util/progress_bar.ncl"
 load "~/Desktop/research/track_cyclones/lib/get_cfsr_climo.ncl"
 load "~/Desktop/research/track_cyclones/lib/tracking_functions.ncl"
