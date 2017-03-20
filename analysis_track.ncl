@@ -2,6 +2,12 @@ load "~/Desktop/research/track_cyclones/lib/circle_avg.ncl"
 load "~/Desktop/research/track_cyclones/util/progress_bar.ncl"
 
 load "~/Desktop/research/track_cyclones/lib/get_cfsr_climo.ncl"  ;; this script needs to be changed
+
+vars = (/"cv",  "cv",   "cv",   "g",    "vr",    "vr"/)
+opts := (/ True, True,  True,    True,   True,     True/)
+levs = (/ 850,   700,   500,    850,    850,     700/)
+rkms = (/ 300.,     300,   300,    200,    200,     200/)
+minima =(/False, False, False, True,    False,  False/)
 load "~/Desktop/research/track_cyclones/lib/tracking_functions.ncl"
 
 
