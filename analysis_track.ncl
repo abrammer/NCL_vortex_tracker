@@ -1,6 +1,7 @@
 load "~/Desktop/research/track_cyclones/lib/circle_avg.ncl"
 load "~/Desktop/research/track_cyclones/util/progress_bar.ncl"
-load "~/Desktop/research/track_cyclones/lib/get_cfsr_climo.ncl"
+
+load "~/Desktop/research/track_cyclones/lib/get_cfsr_climo.ncl"  ;; this script needs to be changed
 load "~/Desktop/research/track_cyclones/lib/tracking_functions.ncl"
 
 
@@ -10,7 +11,7 @@ year=2016
 
 begin
 
-stime = cd_inv_calendar(year, 07,11,00,00,00,"hours since 1800-01-01 00:00:00",0)
+stime = cd_inv_calendar(year, 07,0,00,00,00,"hours since 1800-01-01 00:00:00",0)
 etime = cd_inv_calendar(year, 11,00,00,00,00,"hours since 1800-01-01 00:00:00",0) ; trick to get last day of prev month
 times := fspan(stime, etime, toint((etime-stime)/6)+1)
 times@units = stime@units
