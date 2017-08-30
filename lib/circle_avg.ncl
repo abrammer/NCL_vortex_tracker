@@ -3,7 +3,7 @@ undef("circle_avg")
 function circle_avg(x,r)
 local dims, ndims, i
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -32,7 +32,7 @@ undef("circle_avg_m")
 function circle_avg_m(x,r)
 local dims, ndims, i,r
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -62,7 +62,7 @@ undef("circle_avg_m_point")
 function circle_avg_m_point(x,r,lat,lon)
 local dims, ndims, i,r
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -111,7 +111,7 @@ undef("circle_inout_m_point")
 function circle_inout_m_point(x,r,lat,lon)
 local dims, ndims, i,r
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -140,7 +140,7 @@ undef("circle_inout_m_points")
 function circle_inout_m_points(x,r,lat,lon)
 local dims, ndims, i,r
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -179,7 +179,7 @@ undef("circle_stddev_m_point")
 function circle_stddev_m_point(x,r,lat,lon)
 local dims, ndims, i,r, bx01
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -230,7 +230,7 @@ undef("circle_gthresh_m_point")
 function circle_gthresh_m_point(x,r,thresh,lat,lon)
 local dims, ndims, i,r, bx01,thresh
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -276,7 +276,7 @@ undef("circle_lthresh_m_point")
 function circle_lthresh_m_point(x,r,thresh,lat,lon)
 local dims, ndims, i,r, bx01,thresh
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -320,7 +320,7 @@ undef("circle_missing_m_point")
 function circle_missing_m_point(x,r,lat,lon)
 local dims, ndims, i,r
 begin
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 dims = dimsizes(x)
 ndims = dimsizes(dims)
 
@@ -392,7 +392,7 @@ end
 undef("test_function")
 function test_function()
 begin
-;load "~/NCL/loadFiles.ncl"
+;load "/home11/grad/2010/abrammer/NCL/loadFiles.ncl"
 wks = gsn_open_wks("x11","Test")
 res = True
 res@cnFillOn = True
@@ -404,7 +404,7 @@ res@mpMinLatF = 0
  res@mpMaxLonF = 22.5
  res@mpMinLonF = -22.5
 
-external bx01 "/home/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
+external bx01 "/home11/grad/2010/abrammer/Desktop/research/track_cyclones/lib/circle_avg.so"
 tf = addfile("/cfsr/data/1999/t.1999.0p5.anl.nc","r")
 t = tf->t(0,0,:,:)
 t2 = t

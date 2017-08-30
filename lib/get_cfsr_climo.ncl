@@ -1,5 +1,5 @@
-load "/home/abrammer/NCL/functions/uv2cvF_Wrap.ncl"
-load "/home/abrammer/NCL/functions/uv2owF_Wrap.ncl"
+load "/home11/grad/2010/abrammer/NCL/functions/uv2cvF_Wrap.ncl"
+load "/home11/grad/2010/abrammer/NCL/functions/uv2owF_Wrap.ncl"
 
 undef("cd_climo_time")
 ; returns a cd time for year 0000 from any given year
