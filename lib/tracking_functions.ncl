@@ -113,6 +113,14 @@ function shift_grid(data, pLat, pLon,dy, dx)
 local data, pLon, pLat, dy, dx, sub_locs, data_, dl
 begin
   dl = data&lon(1) - data&lon(0)
+  if( any(data&lon .eq. pLon ))
+  	pLon = pLon+ (dl/2.)
+  end if
+  dlat = abs(data&lat(1) - data&lat(0))
+  if( any(data&lat .eq. pLat ))
+  	pLat = pLat+ (dlat/2.)
+  end if
+
   ;;;;;   shift grid so we're not at the edge of a domain
   if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
       if( pLon-dx .lt. data&lon(0)  )
@@ -210,12 +218,12 @@ begin
   dimz = dimsizes(inlocs)
   rankz = dimsizes(dimz)
   if(rankz.eq.1)
-  n=1
-  locs = new( (/2, 1/), float)
-  locs(:,0) = inlocs
+   n=1
+   locs = new( (/2, 1/), float)
+   locs(:,0) = inlocs
   else
-  n=dimz(1)
-  locs = inlocs
+   n=dimz(1)
+   locs = inlocs
   end if
   retval := new(n, logical)
   retval = False
@@ -226,7 +234,9 @@ begin
     dists = gc_latlon(locs(0,i), locs(1,i), mlats, mlons,0,4)
     dist_ind := ind(dists .le. dist)
      if(all(ismissing(dist_ind)))
-       continue
+       lon_i = ind_nearest_coord( locs(1,i), x&lon, 0)
+      retval@val(i) = x({locs(0,i)}, lon_i)
+      continue
      end if
     nmax := dist_ind( maxind(maxs@maxval(dist_ind)))  
     retval(i) = True
@@ -257,12 +267,12 @@ begin
   dimz = dimsizes(inlocs)
   rankz = dimsizes(dimz)
   if(rankz.eq.1)
-  n=1
-  locs = new( (/2, 1/), float)
-  locs(:,0) = inlocs
+   n=1
+   locs = new( (/2, 1/), float)
+   locs(:,0) = inlocs
   else
-  n=dimz(1)
-  locs = inlocs
+   n=dimz(1)
+   locs = inlocs
   end if
   retval := new(n, logical)
   retval = False
@@ -273,7 +283,9 @@ begin
     dists := gc_latlon(locs(0,i), locs(1,i), mlats, mlons,0,4)
     dist_ind := ind(dists .le. dist)
      if(all(ismissing(dist_ind)))
-       continue
+       lon_i = ind_nearest_coord( locs(1,i), data&lon, 0)
+      retval@val(i) = data({locs(0,i)}, lon_i)
+      continue
      end if
     nmax := dist_ind( minind(maxs@val(dist_ind)))  
     retval(i) = True
@@ -367,8 +379,14 @@ dists := gc_latlon(lat, lon, lats, lons, 0, 4)
 weights = exp( -1 * ((dists^2)/km^2))   ;; generous barnes like weighting function
 subgrid = subgrid^2 * weights
 
-alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
-alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
+sub1d =  ndtooned(subgrid)
+sub1d = where(sub1d .lt. 0, 0, sub1d)
+
+alat = dim_avg_wgt( ndtooned(lats), sub1d, 1)
+alon = dim_avg_wgt( ndtooned(lons), sub1d, 1)
+alat@_FillValue = 9.96921e+36
+alon@_FillValue = 9.96921e+36
+;print(""+alat+""+ismissing(alat))
 if(.not. any( ismissing( (/alat,alon/) ) ))
   aval = data({alat}, {alon})
 else
@@ -445,20 +463,15 @@ else
   ;;;;;   shift grid so we're not at the edge of a domain
   dx = ceil(rkm/111.)+4;
   sublocs := shift_grid(data, pLat, pLon,dx, dx)
-
   ;;;;;   Find mass center over large area first
   n=1
   sub_scale :=  subgrid_location_km(sublocs,  pLat, pLon,minima, rkm)  
         ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
-  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
-        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
 ; check_centerfix(wks, sublocs, sub_scale )
 
   n=2 
-  do while( rkm/(n*1.) .gt. min_rkm )
-        ab_debug(""+ rkm/(n-1))
-   sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
-        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
+  do while( rkm/(n*1.) .gt. min_rkm .and. .not. ismissing(sub_scale(0)) )
+;        ab_debug(""+ rkm/(n-1))
    sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
         ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
 ;    check_centerfix(wks, sublocs, sub_scale )
@@ -467,9 +480,12 @@ else
 
  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, min_rkm)
         ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
- sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, min_rkm)
-        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
   
+  if(any(ismissing(sub_scale(:1))))
+   ab_debug("Missing locs")
+   return(retval)
+  end if
+
   if( sub_scale(1) .lt. min(data&lon))
        sub_scale(1) =  sub_scale(1)+360.
   end if
@@ -668,10 +684,14 @@ begin
       .or.  (dim_num_n(.not.ismissing(track_locs(:,0,:)),1) .ge. 8 )  \   ;; must have lasted 2 days   
             )   
   ct := dimsizes(keep)
-  track_locs(:ct-1,:,:) = track_locs(keep,:,:)
-  track_locs(ct:,:,:) = track_locs@_FillValue
-  track_locs@ct = ct
-    
+  if(all(ismissing(keep)))
+  	  track_locs(:,:,:) = track_locs@_FillValue
+      track_locs@ct = ct
+  else
+	  track_locs(:ct-1,:,:) = track_locs(keep,:,:)
+	  track_locs(ct:,:,:) = track_locs@_FillValue
+	  track_locs@ct = ct
+  end if
 end
 
 
@@ -744,6 +764,9 @@ if(.not. all(ismissing(in_lat)))
     data@min_rkm = get_res_value_keep(options, "min_rkm", 55)
     data@rkm = rkms(v)
     data = circle_avg_m(data,  data@rkm)
+    in_lon = where(in_lon .gt. max(data&lon), in_lon-360., in_lon)
+    in_lon = where(in_lon .lt. min(data&lon), in_lon+360., in_lon) <  max(data&lon)
+    
     do l=0, dimsizes(in_lat)-1
       if(.not. ( ismissing(in_lat(l)) .and. ismissing(in_lon(l))) )
         if(minima(v))
@@ -769,9 +792,11 @@ retval = mand_data(:,:,0)
 retval = retval@_FillValue
 
 retval(:,:1) = (/ combine_multi_positions(mand_data) /)
-nmi = ind(.not.ismissing(retval(:,0)) .and. .not.ismissing(mand_data(:,2,4)) )
+; strength ind 
+s_ind = 4 < dimsizes(vars)-1
+nmi = ind(.not.ismissing(retval(:,0)) .and. .not.ismissing(mand_data(:,2,s_ind)) )
 if(.not.all(ismissing(nmi)))
-  retval(nmi,2) = (/ mand_data(nmi,2,4) /)
+  retval(nmi,2) = (/ mand_data(nmi,2,s_ind) /)
 end if
 retval(:,1) = where(retval(:,1).gt.180, retval(:,1)-360., retval(:,1) ) 
 
@@ -790,6 +815,8 @@ local min_thresh, cv, uwnd, vwnd, maxes, maxes_mass, easterly, tmp_wave_locs, re
 begin
 rkm = get_res_value_keep(opt, "rkm",300)
 min_thresh = get_res_value_keep(opt, "min_threshold", 0.1e-5)
+var        = get_res_value_keep(opt, "var", "cv")
+
 
 cv := grab_data(time, "cv", opt)
 cv = circle_avg_m(cv, rkm*1.5)
@@ -986,7 +1013,7 @@ begin
     data := grab_data(in_time, "mslp", opt)
     locs = (/in_lat, in_lon/)
     temp_min :=  loc_min_dist(data, True, 200, locs); (data, in_lat, in_lon, 200.) 
-
+    
     loc_data := new( (/ dimsizes(in_lat),7 /), float)
     loc_data(:,0) = in_lat
     loc_data(:,1) = in_lon
@@ -999,8 +1026,8 @@ begin
     mslp_closed := check_closed_contour(data, loc_data ,crit)
     loc_data(:,2) = temp_min@val
     loc_data(:,3) = mslp_closed@val
-    loc_data(:,4) = mslp_closed@area
-    
+;    loc_data(:,4) = mslp_closed@area
+;    
 ;    else
 ;      mslp_closed = False
 ;    end if
@@ -1009,14 +1036,52 @@ begin
 
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
    g_opt := True
-    copy_VarAtts(opt, g_opt)
+   copy_VarAtts(opt, g_opt)
    g_opt@levs := (/200,850/)
    g_opt@levSelection := "Explicit"
    hgt := grab_data(in_time, "g", g_opt)
    hgtd := hgt(0,:,:) - hgt(1,:,:)
    copy_VarCoords(hgt(0,:,:), hgtd)
    hgt_max := loc_max_dist(hgtd,True, 200, locs)
-   loc_data(:,5) =  hgt_max@val
+   loc_data(:,5) = hgt_max@val
+
+
+   tpw_opt := True
+   copy_VarAtts(opt, tpw_opt)
+   tpw := grab_data(in_time, "tpw", tpw_opt)
+   tpw_point = circle_avg_m_point(tpw, 250., in_lat, in_lon)
+   loc_data(:,6) = (/ tpw_point /)
+
+
+  u := grab_data(in_time, "u", g_opt)
+  v := grab_data(in_time, "v", g_opt)
+  mag = sqrt( u^2 + v^2)
+  totshear = abs(mag(0,:,:) - mag(1,:,:))
+  copy_VarCoords_not_n(v,totshear,0)
+  loc_data(:,4) = (/circle_avg_m_point(totshear, 500,  in_lat,in_lon)/)
+;
+; vr = uv2vr_cfd(u,v,u&lat,u&lon,3)
+; copy_VarCoords(u,vr)
+; dv = uv2dv_cfd(u,v,u&lat,u&lon,3)
+; copy_VarCoords(u,dv)
+; do i=0,nfixes-1
+;     if( all(ismissing(all_tracks(e,i,0, f)))) continue end if
+;     distance := circle_inout_m_point(vr, 400, all_tracks(e,i,0,f),all_tracks(e,i,1,f) )
+;     vr = where(distance.eq.1, 0, vr)
+;     dv = where(distance.eq.1, 0, dv)
+; end do
+; uv := vrdv2uvF(vr, dv)
+; mag = sqrt(dim_sum_n(uv^2,0))
+; nv_totshear= abs(mag(1,:,:) - mag(0,:,:))
+;     copy_VarCoords_not_n(v,nv_totshear,0)
+
+; totshear = abs(mag(1,:,:) - mag(0,:,:))
+
+
+
+
+
+
 
 ;   vtu := is_env_maxima(hgtd, locs(0),locs(1))
 ;   loc_data(:,6) =  get_res_value_keep(vtu, "val",loc_data(:,6) )
