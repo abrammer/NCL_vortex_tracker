@@ -74,6 +74,7 @@ opt@rkm := 400.
 
 ntimes = dimsizes(times)-1
 do t=0, ntimes
+  ntimes@str = "Starting Locations"
   progress_bar(t, ntimes)
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;;;;;;;;  Find new starting points
@@ -89,6 +90,17 @@ do t=0, ntimes
   track_locs(:,:,t) = unique_locations(track_locs(:,:,t), opt@rkm)
   filter_tracks(track_locs, t, opt)
 
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;;;;;;; Check TC variables if vortcity is high enough
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  nmi := ind( dim_avg_n(track_locs(:,2,(t-4>0):t),1) .gt. 4*10^-5)
+;  if(.not.all(ismissing(nmi)))
+;;   print("-- checking TC Characteristics")
+;   TC_return := check_TC_characteristics(times(t), track_locs(nmi,0,t), track_locs(nmi,1,t), opt)
+;   track_locs(nmi,3:7,t) =(/ TC_return    /)
+;  end if
+
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;;;;;;;;  Propagate/ Extrapolate systems
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -97,18 +109,22 @@ do t=0, ntimes
   
   
   if(plot)
+;   if(t%10.eq.0)
      vr = grab_data(times(t), "vr", opt)
      vr = circle_avg_m(vr, 200.)*10^6
      map = gsn_csm_contour_map(wks, vr, shade_res)
-     do tt=t-6,t
-       if(tt.lt.0)continue end if
-       mres = True
-       mres@gsMarkerIndex = 16
-       mres@gsMarkerColor = greys(t-tt)
-       map@$tostring("points"+tt)$ = gsn_add_polymarker(wks, map, track_locs(:,1,tt),  track_locs(:,0,tt),mres)
-     end do
-     draw(map)
-     frame(wks)
+;   else
+;      map = gsn_csm_map(wks, mpres)
+;    end if
+   do tt=t-6,t
+   if(tt.lt.0)continue end if
+   mres = True
+   mres@gsMarkerIndex = 16
+   mres@gsMarkerColor = greys(t-tt)
+   map@$tostring("points"+tt)$ = gsn_add_polymarker(wks, map, track_locs(:,1,tt),  track_locs(:,0,tt),mres)
+   end do
+   draw(map)
+   frame(wks)
    end if
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 end do
