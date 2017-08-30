@@ -49,7 +49,7 @@ crits = tofloat(critvalue)
 loop = get_res_value_keep(critvalue, "loop", False)
 interval = get_res_value_keep(critvalue, "interval", 1.)
 max_size = get_res_value_keep(critvalue, "max_size", 5e6)
-min_size = get_res_value_keep(critvalue, "min_size", 1e5)
+min_size = get_res_value_keep(critvalue, "min_size", 1e4)
 if(loop)
 min_size = 1e3
 end if
@@ -85,15 +85,19 @@ do l=0, nloc-1
           x = x(::-1)
         end if
        radius := gc_latlon(center_loc(l,0),center_loc(l,1),y, x,0,4) > 150
-       t_area = area_poly_sphere(y, x, 6371)     
+       t_area := area_poly_sphere(y, x, 6371)     
 ;      print("Depth:"+(cVal - (crits(l)-interval) ))
-;      print("t_area:"+t_area)
-;      print("min_radius:"+min(radius))
-;      print("max_radius:"+max(radius))      
+;    print("t_area:"+t_area)
+;    print("min_radius:"+min(radius))
+;    print("max_radius:"+max(radius)) 
+;    print(""+min_size)
+;    print(""+max_size)     
+;    print((t_area .gt. min_size) .and. (t_area .lt. max_size))
         if( \
         (t_area .gt. min_size) .and. (t_area .lt. max_size) \
-       .and. (max(radius) .le. 2.5*min(radius) ) )
+     ); .and. (max(radius) .le. 2.5*min(radius) ) )
 ;         print(max(radius)/min(radius))
+      ;   print("made it")
           area(l) = t_area
           retval(l) = True
           keep_val(l) = cVal
