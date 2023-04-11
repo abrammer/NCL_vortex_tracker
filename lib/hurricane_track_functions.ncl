@@ -335,27 +335,22 @@ function subgrid_location_km(data[*][*]:float, lat[1]:numeric, lon[1]:numeric, m
 local lati, loni, lap, lam, lop, lom, subgrid, lats, lons, alat, alon, aval, dists
 begin
 
-;print(""+km)
 subgrid = data;(lam:lap, lom:lop) 
 if(minima)  subgrid = subgrid*-1  end if
 if(any(subgrid.lt.0)) subgrid = subgrid+abs(min(subgrid)) end if
 
 lats = conform(subgrid, subgrid&lat, 0)
 lons = conform(subgrid, subgrid&lon, 1)
-dists = gc_latlon(lat, lon, lats, lons, 0, 4)
-dists = ((km - dists) > 0)  / (0.5*km) < 1.
-
-subgrid = subgrid^2 * dists
-subgrid = where(ismissing(data), 0, subgrid)
+dists := gc_latlon(lat, lon, lats, lons, 0, 4)
+subgrid = where(dists .gt. (km > min(dists)), 0, subgrid^2)
 
 alat = dim_avg_wgt(ndtooned(lats), ndtooned(subgrid), 1)
 alon = dim_avg_wgt(ndtooned(lons), ndtooned(subgrid), 1)
-aval = dim_avg_wgt(ndtooned(data), ndtooned(subgrid), 1)
-
-;plot = gsn_csm_contour(wks, subgrid, False)
-;mark = gsn_add_polymarker(wks, plot, alon, alat, False)
-;df(wks, plot)
-
+if(.not. any( ismissing( (/alat,alon/) ) ))
+  aval = data({alat}, {alon})
+else
+  aval = new(1, float)
+end if
 return( (/alat, alon, aval/) )
 end
 
@@ -398,8 +393,10 @@ undef("get_mass_center")
 function get_mass_center(data, locs)
 local minima, rkm,dimz, rankz, retval, pLat, pLon, dx, sublocs, lats, lons, val1d, dist
 begin
+
 minima :=  get_res_value_keep(data, "minima", False) 
 rkm :=  get_res_value_keep(data, "rkm", 400.) 
+min_rkm :=  get_res_value_keep(data, "min_rkm", 100.) 
 
 dimz = dimsizes(locs)
 rankz = dimsizes(dimz)
@@ -427,18 +424,26 @@ else
   ;;;;;   Find mass center over large area first
   n=1
   sub_scale :=  subgrid_location_km(sublocs,  pLat, pLon,minima, rkm)  
+        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
   sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
-;  check_centerfix(wks, sublocs, sub_scale )
+        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
+; check_centerfix(wks, sublocs, sub_scale )
 
   n=2 
-  do while( rkm/(n-1) .gt. 100 )
+  do while( rkm/(n*1.) .gt. min_rkm )
+        ab_debug(""+ rkm/(n-1))
    sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
+        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
    sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, rkm/n)
+        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
+;    check_centerfix(wks, sublocs, sub_scale )
    n=n+1
   end do
 
-  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, 100.)
-  sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, 100.)
+ sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, min_rkm)
+        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
+ sub_scale :=  subgrid_location_km(sublocs, sub_scale(0), sub_scale(1), minima, min_rkm)
+        ab_debug(sprintf("%6.4f",sub_scale(0))+"     "+sprintf("%6.4f",sub_scale(1)))
   
   if( sub_scale(1) .lt. min(data&lon))
        sub_scale(1) =  sub_scale(1)+360.
@@ -446,15 +451,6 @@ else
   if( sub_scale(1) .gt. max(data&lon))
       sub_scale(1) =  sub_scale(1)-360.
   end if
-
-
-;res = True
-;res@cnFillOn = False
-;res@cnLevelSpacingF = 50
-;plot = gsn_csm_contour(wks, sublocs, res)
-;mark = gsn_add_polymarker(wks, plot, sub_scale(1), sub_scale(0), False)
-;df(wks, plot)
-
 
   retval(0,:2)  = sub_scale
 
@@ -472,12 +468,13 @@ function is_minima(data, in_lat,in_lon, dist)
 local var_sub, var, loc_min, lmi, min_lat,min_lon, retval, ret,data, lat, lon
 begin
 data@minima = True
-retval =  loc_min_dist(data, True, dist, (/in_lat, in_lon/) )
+retval :=  loc_min_dist(data, True, dist, (/in_lat, in_lon/) )
 if(any(retval))
 
- retval := get_mass_center(data, (/retval@lat, retval@lon/) )
- min_lat = retval(0,0)
- min_lon = retval(0,1)
+  data@rkm = dist 
+  retval := get_mass_center(data, (/retval@lat, retval@lon/) )
+  min_lat = retval(0,0)
+  min_lon = retval(0,1)
 
   if(.not.any(ismissing(retval(0,:))) .and.  gc_latlon(in_lat, in_lon, min_lat, min_lon, 5, 4).lt. dist)
    ret = True
@@ -494,11 +491,10 @@ undef("is_maxima")
 function is_maxima(data, in_lat,in_lon, dist)
 local var_sub, loc_max, lmi, locs, min_lat, ret, mslp, lat, lon, dist,retval
 begin
-;print(lat+"   "+lon)
 
 retval =  loc_max_dist(data, True, dist, (/in_lat, in_lon/) )
 if(any(retval))
-
+ data@rkm = dist 
  retval := get_mass_center(data, (/retval@lat, retval@lon/) )
  min_lat = retval(0,0)
  min_lon = retval(0,1)
@@ -510,7 +506,7 @@ if(any(retval))
    ret@val = retval(0,2)
    return ret
   end if
-  end if
+ end if
  return False
 end
 
@@ -594,19 +590,57 @@ end
 
 
 
+undef("combine_wave_positions")
+function combine_wave_positions(mand_data)
+local mand_data, z_score, avg_loc, rankz, dimz, retval
+begin
+dimz = dimsizes(mand_data)
+rankz = dimsizes(dimz)
+ab_debug(" ---- combine_wave_positions   ----")
+if(rankz.eq.3)
+  retval = new( (/dimz(0), 2/), float)
+  do r=0, dimz(0)-1
+;    print("   "+r)
+   retval(r,:) = combine_wave_positions( mand_data(r,:,:) )
+  end do
+  return retval
+else
+if( num(.not.ismissing(mand_data(0,(/0,1,2,4,5/)))).le.2 ) 
+    ab_debug("Less than 2 center fixes found")
+    return( (/mand_data@_FillValue, mand_data@_FillValue/) )
+ end if 
+ mand_data(1,:) = unwrap_lon(mand_data(1,:), 50.) ;; fix dateline issue.
+ zinds := ind( gc_latlon(avg(mand_data(0,:)), avg(mand_data(1,:)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+;print(zinds +"  ")
+ if(all(ismissing(zinds)))
+       ab_debug("No centers within 350 km")
+   zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
+ end if 
+ if(dimsizes(zinds).le.2)
+        ab_debug("Only 1 center within 350 km")
+     return( (/mand_data@_FillValue, mand_data@_FillValue/) )
+ end if 
+ avg_loc = dim_avg_n( mand_data(:1,zinds),1)
+ return(avg_loc)
+;  end if
+end if
+end 
+
+
+
 undef("get_wave_positions")
 ;;;;;;;;;;;;; Get extra 6 center locations using same curv. vort and OW
 ;;;;;;;;      
 ;;;;;;;; 
 ;;;;;;;; 
-function get_wave_positions(in_time, in_lat, in_lon, rkm)
-local vars, opts, levs, minima, mins, mand_data, rkm, temp_min, opt,v
+function get_wave_positions(in_time, in_lat, in_lon, options)
+local vars, opts, levs, minima, mins, mand_data, rkm, temp_min, opt,v,nmi
 begin
 
 vars = (/"cv",  "cv",   "cv",   "g",    "vr",    "vr"/)
 opts := (/ True, True,  True,    True,   True,     True/)
 levs = (/ 850,   700,   500,    850,    850,     700/)
-r = (/ 350.,     350,   350,    350,    250,     250/)
+rkms = (/ 300.,     300,   300,    200,    200,     200/)
 minima =(/False, False, False, True,    False,  False/)
 
 dimz = dimsizes(in_lat)
@@ -615,30 +649,34 @@ mand_data@_FillValue = default_fillvalue("float")
 
 if(.not. all(ismissing(in_lat)))
   do v=0, dimsizes(vars)-1
-    opt = opts(v)
-    opt@levs = levs(v)
-    copy_VarAtts(rkm, opt)
+    opt := opts(v)
+    copy_VarAtts(options, opt)
+    opt@levs := levs(v)
     data := grab_data(in_time, vars(v), opt)  ;; read in global grid from file
+    opt@rkm = get_res_value_keep(options, "rkm", rkms(v))
     data!0 = "lat"
     data!1 = "lon"
-;    pvs(data)
-    data = circle_avg_m(data, 250.)
+    data := data({50:-20},:)
+    data@min_rkm = get_res_value_keep(options, "min_rkm", 55)
+    data@rkm = rkms(v)
+    data = circle_avg_m(data,  data@rkm)
     do l=0, dimsizes(in_lat)-1
       if(.not. ( ismissing(in_lat(l)) .and. ismissing(in_lon(l))) )
         if(minima(v))
-          temp_min := is_minima(data, in_lat(l), in_lon(l), rkm) 
+          temp_min := is_minima(data, in_lat(l), in_lon(l), opt@rkm) 
         else
-          temp_min := is_maxima(data, in_lat(l), in_lon(l), rkm)
+          temp_min := is_maxima(data, in_lat(l), in_lon(l), opt@rkm)
         end if
-;        if(.not.ismissing(temp_min@lat))
-;;        check_centerfix(wks, data, (/temp_min@lat, temp_min@lon/))
-;
-;;        check_centerfix(wks, data, (/in_lat(l), in_lon(l)/))
-;        end if
         mand_data(l,0,v)  = get_res_value(temp_min, "lat", mand_data@_FillValue)
         mand_data(l,1,v)  = get_res_value(temp_min, "lon", mand_data@_FillValue)
         mand_data(l,2,v)  = get_res_value(temp_min, "val", mand_data@_FillValue)  
       end if
+;      if(ismissing(mand_data(l,1,v)))
+;      print("missing")
+;         check_centerfix(wks, data, (/in_lat, in_lon/) )
+;      else
+;         check_centerfix(wks, data, mand_data(l,:1,v))
+;      end if
     end do
   end do
 end if
@@ -649,7 +687,18 @@ mand_data!2= "variables"
 mand_data&data = (/"lat","lon","val"/)
 mand_data&variables = vars
 
-return (mand_data)
+
+retval = mand_data(:,:,0)
+retval = retval@_FillValue
+
+retval(:,:1) = (/ combine_wave_positions(mand_data) /)
+nmi = ind(.not.ismissing(retval(:,0)) .and. .not.ismissing(mand_data(:,2,4)) )
+if(.not.all(ismissing(nmi)))
+  retval(nmi,2) = (/ mand_data(nmi,2,4) /)
+end if
+retval(:,1) = where(retval(:,1).gt.180, retval(:,1)-360., retval(:,1) ) 
+
+return (retval)
 end 
 
 
@@ -663,10 +712,10 @@ function get_starting_targets(time, lat_bds[2], lon_bds[2], opt)
 local min_thresh, cv, uwnd, vwnd, maxes, maxes_mass, easterly, tmp_wave_locs, retval
 begin
 rkm = get_res_value_keep(opt, "rkm",300)
-min_thresh = get_res_value_keep(opt, "min_threshold", 0.1)
+min_thresh = get_res_value_keep(opt, "min_threshold", 0.1e-5)
 
-cv := grab_data(time, "ow", opt)
-cv = circle_avg_m(cv, rkm)
+cv := grab_data(time, "cv", opt)
+cv = circle_avg_m(cv, rkm*1.5)
 
 maxes := loc_max(cv({lat_bds(0):lat_bds(1)},{lon_bds(0):lon_bds(1)}), True, min_thresh)
 if(maxes .eq. 0)
@@ -680,7 +729,7 @@ do m=0, maxes-1
 end do
 
 ;;;;;;;;;;  Remove duplicate locations
-maxes_mass := unique_locations(maxes_mass, 200.)
+maxes_mass := unique_locations(maxes_mass, rkm)
 keep_inds = ind(.not.ismissing(maxes_mass(:,0)))
 if(dimsizes(keep_inds).eq.1)
  retval := new( (/1,3/), float)
@@ -781,41 +830,6 @@ end if
 end if
 end 
 
-undef("combine_wave_positions")
-function combine_wave_positions(mand_data)
-local mand_data, z_score, avg_loc, rankz, dimz, retval
-begin
-dimz = dimsizes(mand_data)
-rankz = dimsizes(dimz)
-
-if(rankz.eq.3)
-  retval = new( (/dimz(0), 2/), float)
-  do r=0, dimz(0)-1
-;    print("   "+r)
-   retval(r,:) = combine_wave_positions( mand_data(r,:,:) )
-  end do
-  return retval
-else
-if( num(.not.ismissing(mand_data(0,(/0,1,2,4,5/)))).le.2 ) 
-    return( (/mand_data@_FillValue, mand_data@_FillValue/) )
- end if 
- mand_data(1,:) = unwrap_lon(mand_data(1,:), 50.) ;; fix dateline issue.
- zinds := ind( gc_latlon(avg(mand_data(0,:)), avg(mand_data(1,:)) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
-;print(zinds +"  ")
- if(all(ismissing(zinds)))
-   zinds := ind( gc_latlon( mand_data(0,0), mand_data(1,0) , mand_data(0,:), mand_data(1,:), 0, 4) .lt. 350)
- end if 
- if(dimsizes(zinds).le.2)
-     return( (/mand_data@_FillValue, mand_data@_FillValue/) )
- end if 
- avg_loc = dim_avg_n( mand_data(:1,zinds),1)
- return(avg_loc)
-;  end if
-end if
-end 
-
-
-
 
 ;undef("get_wind_speed")
 ;function get_wind_speed(in_time, in_lat, in_lon)
@@ -883,6 +897,16 @@ begin
 ;   vtu := is_env_maxima(hgtd, locs(0),locs(1))
 ;   loc_data(:,6) =  get_res_value_keep(vtu, "val",loc_data(:,6) )
 ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; ;;;;; 
+
+
+
+  u := grab_data(in_time, "u", g_opt)
+  v := grab_data(in_time, "v", g_opt)
+  mag = sqrt( u^2 + v^2)
+  totshear = abs(mag(0,:,:) - mag(1,:,:))
+  copy_VarCoords_not_n(v,totshear,0)
+  loc_data(:,6) = (/circle_avg_m_point(totshear, 500,  in_lat,in_lon)/)
+
 
 ;    opt := True
 ;    opt@levs = (/300,600/)
@@ -1004,6 +1028,105 @@ begin
 lats(1:) = lats(1:) + (obs_lat - lats(0))/2.
 return (lats)
 end 
+
+
+
+undef("filter_tracks")
+procedure filter_tracks(track_locs,t)
+local n_miss, n_track, kill
+begin
+    ;; optional procedure to kill tracks that are too weak to track \
+    ;; filters based on number of missing vorticity values within last 8 track positions
+    ;; if track is longer than 4 times and 50% are missing get rid of it
+  n_miss :=  dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)) .and. ismissing(track_locs(:,2,(t-8)>0:t)),1 ) 
+  n_track := dim_num_n(.not.ismissing(track_locs(:,0,(t-8)>0:t)),1) 
+  kill := ind( n_track.gt.4 .and. n_miss .gt. (n_track/2.) )
+  if(.not.all(ismissing(kill)))
+   print("kill kill")
+   track_locs(kill,:,t) =  track_locs@_FillValue
+  end if
+end
+
+
+undef("advect_tracks")
+function advect_tracks(time, track_loc)
+local nmi, rkm,time,track_loc, steering, uwnd, vwnd, wave_ups, wave_vps
+begin
+  nmi := ind(.not.ismissing(track_loc(:,0)))
+  retvals = new( dimsizes(track_loc(:,:1)), float)
+  if(all(ismissing(nmi)))  return   end if
+  dt = get_res_value_keep(time, "dt", 6)
+  rkm = 350
+  steering := True
+  copy_VarAtts(time, steering)
+  steering@levs := (/800, 300/)
+  steering@levSelection = "Range"
+  uwnd := dim_avg_n_Wrap(grab_data(time, "u", steering),0)
+  vwnd := dim_avg_n_Wrap(grab_data(time, "v", steering),0)
+  wave_ups := circle_avg_m_point(uwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
+  wave_vps := circle_avg_m_point(vwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
+  retvals(nmi,:) = advect_location(track_loc(nmi,:1), wave_ups, wave_vps, 60.*60.*dt)
+ return(  retvals  )
+end
+
+
+
+undef("is_closed_circulation")
+function is_closed_circulation( u, v, lat, lon)
+local DEPT_THRESH, PI \
+    ,radii, nradii,center, circles, u_circle, v_circle, wind_angles, grad, dept \
+    , max_wspd, retval
+begin
+;  '''  Grab u and v wind components from circles around center.
+;       Calculate wind angles and the gradient of angles around circle
+;       Sum of the angles should = 360
+;       if any single gradient is greater than threshold, set sum to that value
+;       Can play with that threshold later.
+load "~/NCL/functions/circles.ncl"
+load "~/NCL/functions/interpolation/interp.ncl"
+
+
+    DEPT_THRESH = 5.
+    PI = 355/113.
+
+    radii = ispan(50, 250, 50)
+    nradii = dimsizes(radii)
+    center = (/lat, lon/)
+
+    circles := new( (/nradii,2,360/), float)
+    do r=0,nradii-1
+      circles(r,:,:) = circle_km(center(0), center(1), radii(r) )
+    end do
+
+    u_circle := bicubic_interp(u,  circles(:,0,:), circles(:,1,:) )
+    v_circle := bicubic_interp(v,  circles(:,0,:), circles(:,1,:) )
+
+    wind_angles := atan2( u_circle, v_circle)
+    grad := center_finite_diff_n(todeg(wind_angles),1, True,0,1)
+    grad := abs(where(abs(180-grad).lt.abs(grad), 180-grad, grad))
+    dept = dim_sum_n(grad,1)
+    dept = abs(where( abs(360-dept).lt.dept,360-dept , dept))
+    dept = where( dim_max_n( grad ,1 ) .gt. DEPT_THRESH, dim_max_n( grad ,1 ) , dept)
+
+    retval = new( (/360, 4/), float)
+    if( num(dept .le. DEPT_THRESH) .ge. 2 )
+        max_wspd =  dim_max_n( sqrt( u_circle^2+v_circle^2),1)
+        max_wspd = where(dept .gt. DEPT_THRESH, 0, max_wspd)
+        retind = maxind(max_wspd)
+;        retind = max( ind( dept .le. DEPT_THRESH))
+        retval(:,0) = circles(retind,0,:)
+        retval(:,1) = circles(retind,1,:)
+        retval(:,2) = u_circle(retind,:)
+        retval(:,3) = v_circle(retind,:)
+        retval@radius = radii(retind)
+        retval@area   = PI*radii(retind)^2
+        retval@departure = dept(retind)
+    else
+        retval@area = 0
+    end if
+return retval
+end
+
 
 
 

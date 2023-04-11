@@ -60,16 +60,13 @@ undef("unwrap_lon")
 function unwrap_lon(lon, thresh)
 local lon, thresh, nl, nmi, d
 begin
-
 nl = dimsizes(lon)
 nmi := ind(.not.ismissing(lon))
-
 do d=0,dimsizes(nmi)-2
-
-  if( lon(nmi(d+1)) - lon(nmi(d)).lt. thresh)
+  if( lon(nmi(d+1)) - lon(nmi(d)).lt. thresh * 0.75)
     lon(nmi(d+1))  = lon(nmi(d+1))+360
   end if
-  if(lon(nmi(d+1)) - lon(nmi(d)).gt. thresh)
+  if(lon(nmi(d+1)) - lon(nmi(d)).gt. thresh * 1.5)
     lon(nmi(d+1))  = lon(nmi(d+1))-360
   end if
 end do
@@ -113,6 +110,8 @@ function shift_grid(data, pLat, pLon,dy, dx)
 local data, pLon, pLat, dy, dx, sub_locs, data_, dl
 begin
   dl = data&lon(1) - data&lon(0)
+    ;; Check if a specific grid point is the desired location.  
+    ;; if it is, nudge the point by half dy/dx so there's always equal points either side
   if( any(data&lon .eq. pLon ))
   	pLon = pLon+ (dl/2.)
   end if
@@ -121,21 +120,24 @@ begin
   	pLat = pLat+ (dlat/2.)
   end if
 
+    ;; check if grid is cyclic before trying to shift longitudes
+  isLonCyclic := abs(mod( ((data&lon(0) - dl ) - last(data&lon)), 360)) .lt. 2*dl
+
+
   ;;;;;   shift grid so we're not at the edge of a domain
-  if(pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon) )
+  if(( pLon-dx .lt. data&lon(0)  .or.  pLon+dx .gt. last(data&lon))  .and. isLonCyclic)
       if( pLon-dx .lt. data&lon(0)  )
         data_ = lonPivot(data, pLon+180)
-        data_&lon = unwrap_lon(data_&lon, dl)
-        data_&lon = data_&lon - 360.
+        data_&lon = unwrap_lon(data_&lon, dl) - 360
       else
         data_ = lonPivot(data, pLon-180)
         data_&lon = unwrap_lon(data_&lon, dl)
       end if
       sublocs := data_({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
   else
-  sublocs := data({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
+      sublocs := data({pLat-dy:pLat+dy}, {pLon-dx:pLon+dx})
   end if
-    return sublocs
+  return sublocs
 end
 
 undef("unique_locations")
@@ -233,11 +235,14 @@ begin
   do i=0,n-1
     dists = gc_latlon(locs(0,i), locs(1,i), mlats, mlons,0,4)
     dist_ind := ind(dists .le. dist)
-     if(all(ismissing(dist_ind)))
+    if(all(ismissing(dist_ind)))
        lon_i = ind_nearest_coord( locs(1,i), x&lon, 0)
-      retval@val(i) = x({locs(0,i)}, lon_i)
-      continue
-     end if
+       lat_i = ind_nearest_coord( locs(0,i), x&lat, 0)
+       if(ismissing(lon_i)) continue end if
+       if(ismissing(lat_i)) continue end if
+       retval@val(i) = x(lat_i, lon_i)
+       continue
+    end if
     nmax := dist_ind( maxind(maxs@maxval(dist_ind)))  
     retval(i) = True
     retval@val(i) = maxs@maxval(nmax)
@@ -605,20 +610,24 @@ undef("advect_tracks")
 function advect_tracks(time, track_loc)
 local nmi, rkm,time,track_loc, steering, uwnd, vwnd, wave_ups, wave_vps
 begin
-  nmi := ind(.not.ismissing(track_loc(:,0)))
-  retvals = new( dimsizes(track_loc(:,:1)), float)
-  if(all(ismissing(nmi)))  return(retvals)   end if
-  dt = get_res_value_keep(time, "dt", 6)
-  rkm = 350
-  steering := True
-  copy_VarAtts(time, steering)
-  steering@levs := (/800, 300/)
-  steering@levSelection = "Range"
-  uwnd := dim_avg_n_Wrap(grab_data(time, "u", steering),0)
-  vwnd := dim_avg_n_Wrap(grab_data(time, "v", steering),0)
-  wave_ups := circle_avg_m_point(uwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
-  wave_vps := circle_avg_m_point(vwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
-  retvals(nmi,:) = advect_location(track_loc(nmi,:1), wave_ups, wave_vps, 60.*60.*dt)
+    nmi := ind(.not.ismissing(track_loc(:,0)))
+    retvals = new( dimsizes(track_loc(:,:1)), float)
+    if(all(ismissing(nmi)))  return(retvals)   end if
+    dt = get_res_value_keep(time, "dt", 6)
+    rkm = 500
+    steering := True
+    copy_VarAtts(time, steering)
+    if(isdefined("steering_levs"))
+        steering@levs := steering_levs
+    else
+        steering@levs = (/800, 300/)
+    end if
+    steering@levSelection = "Range"
+    uwnd := dim_avg_n_Wrap(grab_data(time, "u", steering),0)
+    vwnd := dim_avg_n_Wrap(grab_data(time, "v", steering),0)
+    wave_ups := circle_avg_m_point(uwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
+    wave_vps := circle_avg_m_point(vwnd, rkm, track_loc(nmi,0), track_loc(nmi,1) )
+    retvals(nmi,:) = advect_location(track_loc(nmi,:1), wave_ups, wave_vps, 60.*60.*dt)
  return(  retvals  )
 end
 
@@ -793,7 +802,8 @@ retval = retval@_FillValue
 
 retval(:,:1) = (/ combine_multi_positions(mand_data) /)
 ; strength ind 
-s_ind = 4 < dimsizes(vars)-1
+s_ind = get_res_value_keep(options, "metric_ind", 4 < dimsizes(vars)-1)
+;s_ind = 4 < dimsizes(vars)-1
 nmi = ind(.not.ismissing(retval(:,0)) .and. .not.ismissing(mand_data(:,2,s_ind)) )
 if(.not.all(ismissing(nmi)))
   retval(nmi,2) = (/ mand_data(nmi,2,s_ind) /)
@@ -818,7 +828,7 @@ min_thresh = get_res_value_keep(opt, "min_threshold", 0.1e-5)
 var        = get_res_value_keep(opt, "var", "cv")
 
 
-cv := grab_data(time, "cv", opt)
+cv := grab_data(time, var, opt)
 cv = circle_avg_m(cv, rkm*1.5)
 
 maxes := loc_max(cv({lat_bds(0):lat_bds(1)},{lon_bds(0):lon_bds(1)}), True, min_thresh)

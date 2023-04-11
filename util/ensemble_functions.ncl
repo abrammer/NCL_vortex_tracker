@@ -25,6 +25,7 @@ return(cone)
 end
 
 
+
 undef("unwrap_degrees")
 ;;;;  Check for discontinuities in array greater than thresh
 ;;;;  unwrap array so it's monotonic
@@ -100,7 +101,10 @@ deg2km = 111.
 dimz = dimsizes(obs_lat)
 rankz = dimsizes(dimz)
 
-if(rankz.eq.1 .and. dimz(0) .eq. dimsizes(fcst_lat(0,:)))
+fdimz = dimsizes(fcst_lat)
+frankz = dimsizes(fdimz)
+
+if(rankz.eq.1 .and. (frankz.eq.2) .and. (dimz(0).eq.fdimz(1)) )
 tobs_lat = conform(fcst_lat, obs_lat, 1)
 tobs_lon = conform(fcst_lon, obs_lon, 1)
 else
@@ -241,7 +245,7 @@ if(dimsizes(mean_lat&$tvar$).lt.6) return cone end if
  do t=0, dimsizes(ens_spread)-1
   ens_spread(t) = dim_max(ens_spread(:t))
  end do
- ens_spread = tofloat( ens_spread  + (mean_lon&$tvar$) ) > 50.
+ ens_spread = tofloat( ens_spread  + (mean_lon&$tvar$) ) > 50. < 750.
 ;    print(ens_spread)
 
  lcone := new( (/2,dimsizes(ens_spread)/), float)
@@ -263,7 +267,11 @@ do r=0,34
     start_cone(:,r) = advect_by_km_radians(mean_lat(0), mean_lon(0), ens_spread(0), mean_track(0,0)+(pi-rad))
 end do
 
+cone = new( (/2, 1001/), float)
 lasti = max(ind(.not.ismissing(rcone(0,:))))
+if(ismissing(lasti))
+    return cone
+end if
 cone_dist = (/ gc_latlon( end_cone(0,0), end_cone(1,0),rcone(0,lasti), rcone(1,lasti),0,4), \
                 gc_latlon( end_cone(0,34), end_cone(1,34),rcone(0,lasti), rcone(1,lasti),0,4) /)
 if(cone_dist(0) .gt. cone_dist(1))
@@ -288,7 +296,6 @@ cone_lats := array_append_record( cone_lats, cone_lats(0),0)
 cone_lons := array_append_record(cone_lons, cone_lons(0),0)
 
 nsmth = 10
-cone = new( (/2, 1001/), float)
 cone(0,:) = runave( linint1(fspan(0,100, dimsizes(cone_lats)), cone_lats, True, fspan(0,100,1001), 0), nsmth, -1)
 cone(1,:) = runave( linint1(fspan(0,100, dimsizes(cone_lats)), cone_lons, True, fspan(0,100,1001), 0), nsmth, -1)
 
@@ -436,13 +443,13 @@ cone_lons(nlons-1) = cone_lons(0)
 cone_lats(nlons-1) = cone_lats(0)
 cone_lons = linmsg(cone_lons, -1)
 cone_lats = linmsg(cone_lats, -1)
-print(any(ismissing(cone_lons)))
+;print(any(ismissing(cone_lons)))
 smth = toint(dimsizes(cone_lons)*0.15)
 cone_lons := runave(cone_lons, smth, -1)
 cone_lats := runave(cone_lats, smth, -1)
 cone_lons(nlons-1) = cone_lons(0)
 cone_lats(nlons-1) = cone_lats(0)
-print(cone_lons(nlons-1)+"   "+cone_lons(0))
+;print(cone_lons(nlons-1)+"   "+cone_lons(0))
 map@$tostring("cone"+ct)$ = gsn_add_polyline(wks,map,  cone_lons, cone_lats, restemp)
 ;end do
 end
@@ -489,7 +496,7 @@ end
  if(all(ismissing(cts)))
      ct = 0
  else
-     ct = max(toint(cts))+1
+     ct = max(stringtoint(cts))+1
  end if 
 
  map@$tostring("traj"+ct)$ = gsn_add_polyline(wks, map, newlon,  newlat, lres)
@@ -499,53 +506,90 @@ end
 
 undef("which_basin")
 function which_basin(lat, lon)
-local basin_lats, basin_lons, lat, lon
+local basin_lats, basin_lons, lat, lon,basins
 begin
 basins = new( dimsizes(lat), "string", "un")
-;; epac
+
+lat1d = ndtooned(lat)
+lon1d = ndtooned(lon)
+basin1d = ndtooned(basins)
+
 basin_lats :=  (/0,0,60,60, 20, 15,12,10,8.3,9.25,0/)
 basin_lons := (/-72,-140,-140,-100,-100, -90,-85,-84,-81.5,-79,-72/)
-basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "ep", basins )
-;    return("ep")
-;end if
+nmi := ind( ismissing(basin1d) .and. .not. ismissing(lat1d) )
+if(any(.not.ismissing(nmi)))
+basin1d(nmi) =  where( gc_inout( lat1d(nmi), lon1d(nmi), basin_lats, basin_lons), "ep", basin1d(nmi) )
+end if
+;basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "ep", basins )
+
 basin_lons :=  (/-72,0,0,-100,-100, -90,-85,-84,-81.5,-79,-72/)
 basin_lats :=  (/0,0,60,60, 20, 15,12,10,8.3,9.25,0/)
-basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "al", basins )
+;basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "al", basins )
+nmi :=  ind( ismissing(basin1d) .and. .not. ismissing(lat1d) )
+if(any(.not.ismissing(nmi)))
+    basin1d(nmi) =  where( gc_inout( lat1d(nmi), lon1d(nmi), basin_lats, basin_lons), "al", basin1d(nmi) )
+end if
 
-;if( gc_inout( lat, lon, basin_lats, basin_lons))
-;    return("al")
-;end if
 basin_lons := (/180, 180, 220, 220, 180/)
 basin_lats := (/0,60,60,0,0/)
-basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "cp", basins )
+;basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "cp", basins )
+nmi := ind( ismissing(basin1d) .and. .not. ismissing(lat1d) )
+if(any(.not.ismissing(nmi)))
+basin1d(nmi) =  where( gc_inout( lat1d(nmi), lon1d(nmi), basin_lats, basin_lons), "cp", basin1d(nmi) )
+end if
 
-;if( gc_inout( lat, lon, basin_lats, basin_lons))
-;    return("cp")
-;end if
 basin_lons := (/180, 180, 100, 100, 180/)
 basin_lats := (/0,60,60,0,0/)
-basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "wp", basins )
+;basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "wp", basins )
+nmi :=  ind( ismissing(basin1d) .and. .not. ismissing(lat1d) )
+if(any(.not.ismissing(nmi)))
+basin1d(nmi) =  where( gc_inout( lat1d(nmi), lon1d(nmi), basin_lats, basin_lons), "wp", basin1d(nmi) )
+end if
 
-;if( gc_inout( lat, lon, basin_lats, basin_lons))
-;    return("wp")
-;end if
+
 basin_lons := (/40, 40, 100, 100, 40/)
 basin_lats := (/0,60,60,0,0/)
-basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "io", basins )
+;basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "io", basins )
+nmi :=  ind( ismissing(basin1d) .and. .not. ismissing(lat1d) )
+if(any(.not.ismissing(nmi)))
+basin1d(nmi) =  where( gc_inout( lat1d(nmi), lon1d(nmi), basin_lats, basin_lons), "io", basin1d(nmi) )
+end if
 
-;if( gc_inout( lat, lon, basin_lats, basin_lons))
-;    return("io")
-;end if
+
 basin_lons := (/20, 20, 120, 120, 20/)
 basin_lats := (/0,-60,-60,0,0/)
-basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "io", basins )
+;basins =  where( gc_inout( lat, lon, basin_lats, basin_lons), "io", basins )
+nmi :=  ind( ismissing(basin1d) .and. .not. ismissing(lat1d) )
+if(any(.not.ismissing(nmi)))
+basin1d(nmi) =  where( gc_inout( lat1d(nmi), lon1d(nmi), basin_lats, basin_lons), "io", basin1d(nmi) )
+end if
 
-;if( gc_inout( lat, lon, basin_lats, basin_lons))
-;    return("io")
-;end if
-;    return("un")
+basins = onedtond(basin1d, dimsizes(basins))
+
 return basins
 end 
+
+
+
+undef("directional_track_error")
+function directional_track_error(inlat, inlon, clat, clon, angle)
+local alat, alon, rangle, major_dlat, major_dlon, a, retval
+begin
+    alat = inlat - clat
+    alon = inlon - clon
+    rangle = torad(angle)
+
+    major_dlat = torad( alat )
+    major_dlon = torad( alon )
+    
+    a = sin(major_dlat/2.)^2 + (cos(avg(torad(inlat)))^2 * sin( major_dlon/2.)^2)
+    retval= 6371. *2.* atan2( sqrt(a), sqrt(1-a))
+
+    major_rangle := atan2(major_dlat, major_dlon)
+    retval = retval * cos( rangle -major_rangle )
+    return retval
+end 
+
 
 undef("calculate_ellipse_points")
 function calculate_ellipse_points( clat, clon, major, minor, rotation)
@@ -578,9 +622,15 @@ begin
     if(all(ismissing(nmi))) return new(3, "float", default_fillvalue("float"))  end if
     lat = in_lat(nmi)
     lon = in_lon(nmi)
-
+    if(max(lat).eq.min(lat)) 
+       lat = lat + random_normal(0, 0.15, dimsizes(nmi))
+    end if
+    if(max(lon).eq.min(lon)) 
+       lon = lon + random_normal(0, 0.15, dimsizes(nmi))
+    end if
     eof = eofunc((/lat, lon/),2, False)
     rangle = atan2(eof(0,0), eof(0,1))    
+    if(all(ismissing(rangle))) return new(3, "float", default_fillvalue("float"))  end if
     if(rangle .lt. 0 )
          rangle = rangle + pi
     end if
@@ -618,20 +668,34 @@ begin
     retval@major = alon*cos( rangle )   + alat*sin( rangle )
     retval@minor = alon*cos( rangle+pi/2. )+ alat*sin( rangle+pi/2. )
 
-    major_dlat = torad( alat*sin(rangle) )
-    major_dlon = torad( alon*cos(rangle) )
-    a = sin(major_dlat/2.)^2 + (cos(avg(torad(lat)))^2 * sin( major_dlon/2.)^2)
-    retval@major_km = 6371. *2.* atan2( sqrt(a), sqrt(1-a))
-    retval@major_km = where(retval@major .lt. 0, retval@major_km *-1., retval@major_km)
+    retval@major_km = directional_track_error(lat, lon, avg(lat), avg(lon), angle)
+    retval@minor_km = directional_track_error(lat, lon, avg(lat), avg(lon), angle-90)
 
-    minor_dlat = torad( alat*sin(rangle+pi/2.) )
-    minor_dlon = torad( alon*cos(rangle+pi/2.) )
-    a = sin(minor_dlat/2.)^2 + (cos(avg(torad(lat)))^2  * sin( minor_dlon/2.)^2)
-    retval@minor_km =  6371. * 2.* atan2( sqrt(a), sqrt(1-a))
-    retval@minor_km = where(retval@minor .lt. 0, retval@minor_km *-1., retval@minor_km)
     retval@tech = in_lat&tech(nmi)
 
 return ( retval )
+end
+
+
+undef("calculate_along_axis")
+function calculate_along_axis(in_lat, in_lon)
+local pi, pi2d,deg2km,  mlat, mlon, dby, dbx, rangle, angle, in_lat, in_lon
+begin
+
+    pi   = 355/113.
+    p2d = (pi/180.)
+    deg2km = 111.
+
+    mlat = dim_avg_n_Wrap(in_lat,0)
+    mlon = dim_avg_n_Wrap(in_lon,0)
+    dby = center_finite_diff(mlat, 1, False, 0)* deg2km     
+    dbx = center_finite_diff(mlon, 1, False, 0)* deg2km * cos(0.5*(mlat)*p2d)
+    rangle = atan2(dby, dbx)
+    if(all(ismissing(rangle))) return new(dimsizes(in_lat), "float", default_fillvalue("float"))  end if
+    rangle = where(rangle.lt.0, rangle+pi, rangle)
+    angle = todeg(rangle)
+    copy_VarCoords_not_n(in_lat, angle,0)
+    return( angle )
 end
 
 
@@ -746,24 +810,31 @@ begin
   tech_regex = get_res_value_keep(time, "tech_regex", ".*")
   
   time_s = cd_string(time, "%Y%N%D%H"  )
- ; print(grep+" '"+time_s+tech_regex+"' "+adeck)
-  adeck_string := systemfunc(grep+" '"+time_s+tech_regex+"' "+adeck)
+  tech_regex_str = time_s+str_join(tech_regex, time_s)
+  ;print("grep '"+tech_regex_str+"' "+adeck)
+  ;print(tech_regex_str)
+  adeck_string := systemfunc(grep+" '"+tech_regex_str+"' "+adeck)
   if(all(ismissing(adeck_string)))
        retdata=  new( (/4, 1, 1/), float)
        return retdata
   end if
-  dataread = str_left_strip(str_split_csv(adeck_string,",",0))
-  techs :=  dataread(:,4)
-  storms := dataread(:,1)
-  
+;  asciiwrite("./test_string", adeck_string)
+  ;print(adeck_string)
+  csv_string := str_split_csv(adeck_string,",",0)
+  dataread := (csv_string)
+  delete(adeck_string)
+  ;print(dataread)
+  ;print(dataread(:,4))
+  techs :=  str_strip(dataread(:,4))
+  storms := str_strip(dataread(:,1))
   utechs = get_unique_values(techs)
   ustorms = get_unique_values(storms)
-  
   ntech := dimsizes(utechs)
   nstorm := dimsizes(ustorms)
   
   fhrs  = toint(dataread(:,5))
   nfhrs := (max(fhrs)-min(fhrs))/6
+  if(nfhrs .lt. 1) return new((/4,1,1/), float) end if
   afhr := fspan(min(fhrs), max(fhrs), nfhrs+1)
   retdata = new( (/4, ntech*nstorm, nfhrs+1/), float)
   retdata!2 = "time"
@@ -771,7 +842,6 @@ begin
   retdata!1 = "ens_mem"
   retdata&ens_mem = new( (/ntech*nstorm/), "string")
   retdata@storm_id = new( (/ntech*nstorm/), "string")
-  
   lats = string_latlon_to_numeric(dataread(:,6))
   lons = string_latlon_to_numeric(dataread(:,7)) 
   vmax = tofloat(dataread(:,8))  
@@ -781,13 +851,15 @@ begin
   lons@_FillValue = default_fillvalue(typeof(lons))
   lats = where(lats.eq.0 .and. lons.eq.0 , lats@_FillValue, lats)
   lons = where(lats.eq.0 .and. lons.eq.0 , lons@_FillValue, lons)  
-  
-  ct=0
+  ct=0     
+  print("preventing a segfault --- n="+afhr)
+
   do s=0, nstorm-1
    do t=0, ntech-1
-     i := ind(dataread(:,4).eq.utechs(t) .and. dataread(:,1).eq.ustorms(s) )
+     i := ind(techs.eq.utechs(t) .and. storms.eq.ustorms(s)  .and. fhrs%6 .eq. 0 )
      retdata&ens_mem(ct) = utechs(t)
      retdata@storm_id(ct) = ustorms(s)
+;     if( .not. any(afhr .eq. (/fhrs(i)/) ) ) continue end if
      retdata(0,ct, {fhrs(i)}) =(/ lats(i) /)
      retdata(1,ct, {fhrs(i)}) =(/ lons(i) /)
      retdata(2,ct, {fhrs(i)}) =(/ vmax(i) /)
@@ -795,7 +867,7 @@ begin
      ct = ct+1
    end do
   end do
-   
+retdata@init_time   = time
 return retdata
 end
    
@@ -1075,7 +1147,11 @@ plot_var = (/ cubicmsg_n(plot_var,0,0) /)
 cnMin = get_res_value_keep(plot_var, "cnMinLevelValF", min(plot_var) )
 cnMax = get_res_value_keep(plot_var, "cnMaxLevelValF", max(plot_var) )
 cnLevels = get_res_value_keep(plot_var, "cnLevels", fspan(cnMin, cnMax, 21) )
-
+lbLevels = get_res_value_keep(plot_var, "lbLevels", cnLevels )
+if(dimsizes(lbLevels) .gt. 10  .and. .not. isatt(plot_var, "lbLevels") )
+    lbSpacer = dimsizes(lbLevels)/10
+    lbLevels := lbLevels(::lbSpacer)
+end if
 title = get_res_value_keep(plot_var, "long_name", "")
 units = get_res_value_keep(plot_var, "units", "")
 cnFillPalette = get_res_value_keep(plot_var, "cnFillPalette", "MPL_StepSeq")
@@ -1083,12 +1159,12 @@ cnFillPalette = get_res_value_keep(plot_var, "cnFillPalette", "MPL_StepSeq")
 nens =  dimsizes(plot_var(:,0))
 techs = plot_var&tech
 
-print(nens)
+;print(nens)
 
 xarray = new( dimsizes(plot_var&time)+1, typeof(plot_var&time) )
 xarray(:dimsizes(xarray)-2) = plot_var&time
 xarray(dimsizes(xarray)-1) = xarray(dimsizes(xarray)-2)+ (xarray(dimsizes(xarray)-2)-xarray(dimsizes(xarray)-3))
-pvs(xarray)
+;pvs(xarray)
  tm_res := True
  tm_res@txBackgroundFillColor := -1
  tm_res@txPosYF := 0.5
@@ -1117,7 +1193,18 @@ pvs(xarray)
  res@tmYLLabels = techs
  res@tmYLValues := ispan(0,nens-1,1)+0.5
  res@tmYLMode = "Explicit"
- res@tmXBValues := ispan(toint(min(plot_var&time)),toint(max(plot_var&time))-24, 24)
+ xbInds = ind( (mod(plot_var&time,24) .eq. 0 ) .and. (plot_var&time .ne. min(plot_var&time)) .and. (plot_var&time .ne. max(plot_var&time)) )
+ if(all(ismissing(xbInds)))
+         xbInds := ind( ( mod(plot_var&time,12) .eq. 0 ) .and. (plot_var&time .ne. min(plot_var&time)) .and. (plot_var&time .ne. max(plot_var&time)) )
+ end if
+ if(all(ismissing(xbInds)))
+         xbInds := ind( (mod(plot_var&time,6) .eq. 0 ) .and. (plot_var&time .ne. min(plot_var&time)) .and. (plot_var&time .ne. max(plot_var&time)) )
+ end if
+ if(all(ismissing(xbInds)))
+         xbInds := ind(  (plot_var&time .ne. min(plot_var&time)) .and. (plot_var&time .ne. max(plot_var&time)) )
+ end if
+
+ res@tmXBValues := plot_var&time(xbInds)
  res@tmXBLabels := res@tmXBValues+"hr"
  res@tmXBMode = "Explicit"
  res@tmYLMajorLengthF = 0.
@@ -1126,7 +1213,7 @@ pvs(xarray)
  res@trYMinF = 0
  res@trYMaxF = nens+1.5
  res@trXMinF = max( (/-12,min( (/0, min(plot_var&time) /) ) /) )
- res@trXMaxF = max( (/148, max(plot_var&time)/) )
+ res@trXMaxF = max( (/120, max(plot_var&time)/) )
  res@lbLabelBarOn = False
  res@cnLineLabelsOn = False
  res@cnInfoLabelOn = False
@@ -1135,7 +1222,7 @@ pvs(xarray)
  res@cnConstFLabelString = "No Data Found ~C~ System likely too weak"
  res@cnNoDataLabelString = "No Data Found ~C~ System likely too weak"
 
-  lb_res := True
+ lb_res := True
  lb_res@lbOrientation = "Horizontal"
  lb_res@lbFormat = "%2.0f"
  lb_res@lbLabelFontHeightF = 0.008
@@ -1171,7 +1258,7 @@ pvs(xarray)
  plot = gsn_csm_contour(wks, plot_var(:, :), res)
  interior_tickmarks(wks, plot, tm_res)
  interior_subtitles(wks, plot, "", "", title+" | Ens Mem x Time",  tm_res)
- plot@labelbar = apb_create_labelbar(wks, cnLevels(::2), cnFillPalette, lb_res)
+ plot@labelbar = apb_create_labelbar(wks, lbLevels, cnFillPalette, lb_res)
  plot@annoid1 = gsn_add_annotation(plot,plot@labelbar,annres)
  return plot
 end 
